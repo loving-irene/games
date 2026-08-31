@@ -318,3 +318,14 @@ h2 {
 }
 
 .btn-ghost:hover { border-color: rgba(140, 200, 255, 0.8); box-shadow: none; }
+
+/* 手柄 / 键盘菜单焦点高亮 */
+.btn.focused {
+  box-shadow: 0 0 0 3px rgba(140, 205, 255, 0.45), 0 0 26px rgba(90, 180, 255, 0.9);
+  transform: scale(1.04);
+}
+
+.mode-btn.focused {
+  border-color: rgba(200, 235, 255, 0.9);
+  box-shadow: 0 0 0 3px rgba(140, 205, 255, 0.4), 0 0 20px rgba(90, 180, 255, 0.7);
+}

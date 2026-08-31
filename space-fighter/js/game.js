@@ -20,6 +20,7 @@ var ui = {
   finalScore: $('final-score'), padStatus: $('pad-status'),
   btnStart: $('btn-start'), btnResume: $('btn-resume'),
   btnRestart: $('btn-restart'), btnBomb: $('btn-bomb'),
+  btnHome: $('btn-home'),
   btnPause: $('btn-pause'), pauseInfo: $('pause-info'),
   btnPauseRestart: $('btn-pause-restart'),
   btnModeEasy: $('btn-mode-easy'), btnModeNormal: $('btn-mode-normal'),
@@ -86,6 +87,31 @@ function toggleInfiniteLives() {
   sfx.select();
 }
 
+// ---------------- 菜单焦点导航（手柄 / 键盘） ----------------
+var menus = {
+  start: { items: [ui.btnModeEasy, ui.btnModeNormal, ui.btnInfinite, ui.btnStart], defIdx: 3, idx: 3 },
+  over: { items: [ui.btnRestart, ui.btnHome], defIdx: 0, idx: 0 }
+};
+var activeMenu = null;
+
+function setMenuFocus(menu, idx) {
+  menu.idx = (idx + menu.items.length) % menu.items.length;
+  menu.items.forEach(function (el, i) {
+    el.classList.toggle('focused', i === menu.idx);
+  });
+}
+
+function showMenu(name) {
+  activeMenu = menus[name];
+  setMenuFocus(activeMenu, activeMenu.defIdx);
+}
+
+function hideMenu() {
+  if (!activeMenu) return;
+  activeMenu.items.forEach(function (el) { el.classList.remove('focused'); });
+  activeMenu = null;
+}
+
 // ---------------- HUD ----------------
 var _hudCache = {};
 
@@ -107,8 +133,29 @@ function refreshHud() {
   if (boss) ui.bossHp.style.width = Math.max(0, boss.hp / boss.maxHp * 100) + '%';
 }
 
+// ---------------- 全屏 ----------------
+function enterFullscreen() {
+  var el = document.documentElement;
+  var fn = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+  if (!fn) return;
+  try {
+    var p = fn.call(el);
+    if (p && p.catch) p.catch(function () { /* 浏览器拒绝（如无用户激活）时忽略 */ });
+  } catch (e) { /* 忽略 */ }
+}
+
+function exitFullscreen() {
+  var fn = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
+  if (!fn || !document.fullscreenElement && !document.webkitFullscreenElement) return;
+  try {
+    var p = fn.call(document);
+    if (p && p.catch) p.catch(function () { /* 忽略 */ });
+  } catch (e) { /* 忽略 */ }
+}
+
 // ---------------- 状态切换 ----------------
 function startGame() {
+  enterFullscreen(); // 借助本次点击 / 按键的用户激活请求进入全屏
   sfx.select();
   sfx.startMusic('normal');
   G.mode = 'playing';
@@ -173,15 +220,33 @@ function gameOver() {
   ui.over.classList.remove('hidden');
 }
 
+// 返回入口页：可重新选择难度 / 无限生命等配置
+function backToMenu() {
+  sfx.select();
+  sfx.stopMusic();
+  G.mode = 'start';
+  exitFullscreen();
+  ui.over.classList.add('hidden');
+  ui.pause.classList.add('hidden');
+  ui.start.classList.remove('hidden');
+  showMenu('start');
+}
+
 // ---------------- 输入分发 ----------------
 function handleGlobalInput() {
   var confirm = input.consumeConfirm();
   var pause = input.consumePause();
   var bomb = input.consumeBomb();
+  var up = input.consumeUp();     // 每帧消费，避免游戏中的残留边沿影响菜单
+  var down = input.consumeDown();
+  var moved = false;
 
   switch (G.mode) {
     case 'start':
-      if (confirm) startGame();
+      if (up) { setMenuFocus(activeMenu, activeMenu.idx - 1); moved = true; }
+      else if (down) { setMenuFocus(activeMenu, activeMenu.idx + 1); moved = true; }
+      if (moved) sfx.select();
+      else if (confirm) activeMenu.items[activeMenu.idx].click();
       break;
     case 'playing':
       if (pause) { pauseGame(); break; }
@@ -191,7 +256,13 @@ function handleGlobalInput() {
       if (pause || confirm) resumeGame();
       break;
     case 'over':
-      if (confirm && overLockT <= 0) startGame();
+      if (overLockT <= 0) {
+        if (up) { setMenuFocus(activeMenu, activeMenu.idx - 1); moved = true; }
+        else if (down) { setMenuFocus(activeMenu, activeMenu.idx + 1); moved = true; }
+        if (moved) sfx.select();
+        else if (confirm) activeMenu.items[activeMenu.idx].click();
+        else if (bomb) backToMenu(); // ◯ 返回入口页
+      }
       break;
   }
 }
@@ -260,11 +331,21 @@ input.onPadChange = function (connected, name) {
 ui.btnStart.addEventListener('click', startGame);
 ui.btnResume.addEventListener('click', resumeGame);
 ui.btnRestart.addEventListener('click', startGame);
+ui.btnHome.addEventListener('click', backToMenu);
 ui.btnModeEasy.addEventListener('click', function () { setDiffMode('easy'); });
 ui.btnModeNormal.addEventListener('click', function () { setDiffMode('normal'); });
 ui.btnInfinite.addEventListener('click', toggleInfiniteLives);
 DIFF = DIFF_PRESETS[G.diffMode];
 applyModeSelection();
+showMenu('start');
+// 鼠标悬停时同步菜单焦点，避免焦点环与指针位置脱节
+Object.keys(menus).forEach(function (name) {
+  menus[name].items.forEach(function (el, i) {
+    el.addEventListener('pointerenter', function () {
+      if (activeMenu === menus[name]) setMenuFocus(menus[name], i);
+    });
+  });
+});
 ui.btnBomb.addEventListener('pointerdown', function (e) {
   e.preventDefault();
   useBomb();

@@ -54,6 +54,8 @@
         if (k === 'KeyK') self._bombEdge = true;
         if (k === 'Escape' || k === 'KeyP') self._pauseEdge = true;
         if (k === 'Space' || k === 'Enter') self._confirmEdge = true;
+        if (k === 'ArrowUp' || k === 'KeyW') self._upEdge = true;
+        if (k === 'ArrowDown' || k === 'KeyS') self._downEdge = true;
       }
       self.keys.add(k);
     });
@@ -164,10 +166,20 @@
       if (pressed(9) && !this._prev.pause) this._pauseEdge = true;
       // ✕ 确认（边沿，仅菜单用）
       if (pressed(0) && !this._prev.confirm) this._confirmEdge = true;
+      // D-pad 上 / 下：菜单导航（边沿）
+      if (pressed(12) && !this._prev.dpadUp) this._upEdge = true;
+      if (pressed(13) && !this._prev.dpadDown) this._downEdge = true;
+      // 左摇杆上 / 下：菜单导航（边沿）
+      if (ay < -0.5 && !this._prev.stickUp) this._upEdge = true;
+      if (ay > 0.5 && !this._prev.stickDown) this._downEdge = true;
 
       this._prev.bomb = pressed(1) || pressed(4);
       this._prev.pause = pressed(9);
       this._prev.confirm = pressed(0);
+      this._prev.dpadUp = pressed(12);
+      this._prev.dpadDown = pressed(13);
+      this._prev.stickUp = ay < -0.5;
+      this._prev.stickDown = ay > 0.5;
     }
 
     // 触屏：触摸即开火
