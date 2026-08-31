@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#04060f">
+<title>太空战机 · Space Fighter</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="css/style.css?v=1.7">
+</head>
+<body>
+<div id="stage">
+  <canvas id="game"></canvas>
+
+  <!-- 顶部 / 底部 HUD -->
+  <div id="hud" class="hidden">
+    <div id="hud-top">
+      <div class="hud-block">
+        <span class="hud-label">得分</span>
+        <span id="score">0</span>
+      </div>
+      <div class="hud-block center">
+        <span class="hud-label">波次</span>
+        <span id="wave">1</span>
+      </div>
+      <div class="hud-block right">
+        <span class="hud-label">最高分</span>
+        <span id="hiscore">0</span>
+      </div>
+    </div>
+    <div id="hud-bottom">
+      <div class="hud-group">
+        <span class="hud-label">生命</span>
+        <span id="lives"></span>
+      </div>
+      <div class="hud-group">
+        <span class="hud-label">炸弹</span>
+        <span id="bombs"></span>
+      </div>
+      <div class="hud-group">
+        <span class="hud-label">火力</span>
+        <span id="weapon"></span>
+        <span id="weapon-name" class="hud-label"></span>
+      </div>
+    </div>
+    <div id="boss-bar" class="hidden">
+      <span id="boss-name">BOSS</span>
+      <div class="bar"><div id="boss-hp"></div></div>
+    </div>
+  </div>
+
+  <!-- 开始界面 -->
+  <div id="screen-start" class="screen">
+    <h1>太空战机</h1>
+    <p class="subtitle">SPACE&nbsp;FIGHTER</p>
+    <div id="pad-status">🎮 未检测到手柄 · 可用键盘 / 触屏游玩</div>
+    <div class="controls-help">
+      <div class="ctl"><span class="key">左摇杆 / D-pad</span><span>移动</span></div>
+      <div class="ctl"><span class="key">自动射击</span><span>无需按键</span></div>
+      <div class="ctl"><span class="key">◯ / L1</span><span>炸弹</span></div>
+      <div class="ctl"><span class="key">OPTIONS</span><span>暂停</span></div>
+      <div class="ctl"><span class="key">WASD / 方向键 移动 · K / L1 炸弹</span><span>键盘操作</span></div>
+    </div>
+    <div id="mode-select">
+      <button id="btn-mode-easy" class="mode-btn" data-mode="easy">👶 幼儿模式</button>
+      <button id="btn-mode-normal" class="mode-btn" data-mode="normal">⚔️ 正常模式</button>
+      <button id="btn-infinite" class="mode-btn">♾️ 无限生命：关</button>
+    </div>
+    <button id="btn-start" class="btn">开始游戏</button>
+    <p class="hint">按 ✕ / 空格 开始 · 每 5 波出现 BOSS</p>
+  </div>
+
+  <!-- 暂停 -->
+  <div id="screen-pause" class="screen hidden">
+    <h2>已暂停</h2>
+    <p id="pause-info"></p>
+    <button id="btn-resume" class="btn">继续 (✕ / Esc)</button>
+    <button id="btn-pause-restart" class="btn btn-ghost">重新开始</button>
+  </div>
+
+  <!-- 结束 -->
+  <div id="screen-over" class="screen hidden">
+    <h2>游戏结束</h2>
+    <p id="final-score"></p>
+    <button id="btn-restart" class="btn">再来一局 (✕)</button>
+  </div>
+
+  <!-- 游戏中暂停按钮 -->
+  <button id="btn-pause" class="hidden">⏸</button>
+
+  <!-- 移动端炸弹按钮 -->
+  <button id="btn-bomb" class="hidden">💣</button>
+</div>
+<script src="js/input.js?v=1.7"></script>
+<script src="js/audio.js?v=1.7"></script>
+<script src="js/entities.js?v=1.7"></script>
+<script src="js/render.js?v=1.7"></script>
+<script src="js/game.js?v=1.7"></script>
+</body>
+</html>

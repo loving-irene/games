@@ -1,0 +1,320 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #04060f;
+  font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  color: #cfe8ff;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+#stage {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+}
+
+#game {
+  position: absolute;
+  inset: 0;
+  display: block;
+  touch-action: none;
+}
+
+.hidden { display: none !important; }
+
+/* ---------- HUD ---------- */
+#hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+
+#hud-top {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 16px;
+  font-size: 15px;
+}
+
+.hud-block {
+  min-width: 110px;
+  background: rgba(8, 16, 38, 0.55);
+  border: 1px solid rgba(80, 160, 255, 0.25);
+  border-radius: 8px;
+  padding: 6px 12px;
+  backdrop-filter: blur(4px);
+}
+
+.hud-block.center { text-align: center; }
+.hud-block.right { text-align: right; }
+
+.hud-label {
+  display: block;
+  font-size: 11px;
+  color: #6f9fd8;
+  letter-spacing: 2px;
+}
+
+#score, #wave, #hiscore {
+  font-size: 20px;
+  font-weight: 700;
+  color: #eaf6ff;
+  text-shadow: 0 0 8px rgba(80, 180, 255, 0.8);
+  font-variant-numeric: tabular-nums;
+}
+
+#hud-bottom {
+  position: absolute;
+  bottom: 10px;
+  left: 16px;
+  right: 16px;
+  display: flex;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.hud-group {
+  background: rgba(8, 16, 38, 0.55);
+  border: 1px solid rgba(80, 160, 255, 0.2);
+  border-radius: 8px;
+  padding: 4px 10px;
+}
+
+#lives { color: #ff5d6c; letter-spacing: 3px; text-shadow: 0 0 6px rgba(255, 90, 110, 0.8); }
+#bombs { color: #ffd25d; letter-spacing: 3px; text-shadow: 0 0 6px rgba(255, 210, 90, 0.8); }
+#weapon { color: #6cf2ff; letter-spacing: 3px; text-shadow: 0 0 6px rgba(108, 242, 255, 0.8); }
+
+/* Boss 血条 */
+#boss-bar {
+  position: absolute;
+  top: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(70%, 420px);
+  text-align: center;
+}
+
+#boss-name {
+  font-size: 12px;
+  letter-spacing: 3px;
+  color: #ff8a9a;
+}
+
+.bar {
+  margin-top: 4px;
+  height: 10px;
+  background: rgba(255, 60, 90, 0.15);
+  border: 1px solid rgba(255, 90, 120, 0.5);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+#boss-hp {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, #ff3b5c, #ff8a5c);
+  box-shadow: 0 0 10px rgba(255, 70, 100, 0.8);
+  transition: width 0.15s ease-out;
+}
+
+/* ---------- 覆盖屏 ---------- */
+.screen {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  text-align: center;
+  background: radial-gradient(ellipse at center, rgba(6, 12, 30, 0.72) 0%, rgba(3, 6, 15, 0.92) 100%);
+  padding: 24px;
+}
+
+h1 {
+  font-size: clamp(42px, 9vw, 72px);
+  letter-spacing: 12px;
+  color: #eaf6ff;
+  text-shadow: 0 0 18px rgba(80, 180, 255, 0.9), 0 0 46px rgba(60, 120, 255, 0.5);
+}
+
+.subtitle {
+  letter-spacing: 8px;
+  font-size: 15px;
+  color: #6f9fd8;
+  margin-top: -10px;
+}
+
+h2 {
+  font-size: clamp(30px, 6vw, 44px);
+  letter-spacing: 8px;
+  text-shadow: 0 0 14px rgba(80, 180, 255, 0.8);
+}
+
+#screen-over h2 { color: #ff8a9a; text-shadow: 0 0 18px rgba(255, 90, 110, 0.8); }
+
+#final-score {
+  font-size: 22px;
+  color: #eaf6ff;
+  font-variant-numeric: tabular-nums;
+}
+
+#pad-status {
+  font-size: 13px;
+  color: #8fc7ff;
+  background: rgba(8, 16, 38, 0.6);
+  border: 1px solid rgba(80, 160, 255, 0.25);
+  padding: 6px 14px;
+  border-radius: 20px;
+}
+
+#pad-status.connected {
+  color: #7dffb0;
+  border-color: rgba(90, 255, 160, 0.4);
+}
+
+.controls-help {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.ctl {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #a9cdf5;
+}
+
+.key {
+  display: inline-block;
+  min-width: 170px;
+  background: rgba(20, 40, 80, 0.6);
+  border: 1px solid rgba(100, 170, 255, 0.35);
+  border-radius: 6px;
+  padding: 4px 10px;
+  color: #eaf6ff;
+  font-size: 12px;
+}
+
+.btn {
+  pointer-events: auto;
+  font-size: 18px;
+  letter-spacing: 4px;
+  color: #061020;
+  background: linear-gradient(180deg, #6cd8ff, #2f8dff);
+  border: none;
+  border-radius: 30px;
+  padding: 13px 44px;
+  cursor: pointer;
+  box-shadow: 0 0 20px rgba(60, 150, 255, 0.55);
+  transition: transform 0.08s ease, box-shadow 0.08s ease;
+}
+
+.btn:hover { transform: scale(1.05); box-shadow: 0 0 28px rgba(80, 170, 255, 0.85); }
+
+/* ---------- 模式选择 ---------- */
+#mode-select {
+  pointer-events: auto;
+  display: flex;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.mode-btn {
+  font-size: 15px;
+  letter-spacing: 2px;
+  color: #9fc4ef;
+  background: rgba(20, 44, 80, 0.55);
+  border: 1px solid rgba(110, 170, 255, 0.35);
+  border-radius: 22px;
+  padding: 9px 22px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.mode-btn:hover { border-color: rgba(140, 200, 255, 0.8); }
+
+.mode-btn.selected {
+  color: #061020;
+  background: linear-gradient(180deg, #9fe8ff, #4aa8ff);
+  border-color: transparent;
+  font-weight: bold;
+  box-shadow: 0 0 16px rgba(80, 170, 255, 0.6);
+}
+.btn:active { transform: scale(0.97); }
+
+.hint {
+  font-size: 12px;
+  color: #6f9fd8;
+  letter-spacing: 1px;
+}
+
+/* 移动端炸弹按钮 */
+#btn-bomb {
+  position: absolute;
+  right: 22px;
+  bottom: 64px;
+  z-index: 6;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 210, 90, 0.6);
+  background: rgba(40, 30, 8, 0.55);
+  color: #ffd25d;
+  font-size: 26px;
+  backdrop-filter: blur(4px);
+  pointer-events: auto;
+}
+
+/* 游戏中暂停按钮 */
+#btn-pause {
+  position: absolute;
+  top: 64px;
+  right: 14px;
+  z-index: 6;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 2px solid rgba(110, 170, 255, 0.5);
+  background: rgba(8, 16, 38, 0.55);
+  color: #9fd4ff;
+  font-size: 20px;
+  line-height: 1;
+  backdrop-filter: blur(4px);
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+#btn-pause:active { transform: scale(0.94); }
+
+#pause-info {
+  font-size: 16px;
+  color: #a9cdf5;
+  letter-spacing: 1px;
+  line-height: 1.9;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 暂停界面次要按钮 */
+.btn-ghost {
+  background: rgba(20, 44, 80, 0.55);
+  color: #9fc4ef;
+  border: 1px solid rgba(110, 170, 255, 0.4);
+  box-shadow: none;
+  font-size: 15px;
+  padding: 10px 34px;
+}
+
+.btn-ghost:hover { border-color: rgba(140, 200, 255, 0.8); box-shadow: none; }
