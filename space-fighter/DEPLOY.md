@@ -72,6 +72,8 @@ python -m http.server 8080
 | `DOMAIN` | `zj.games.jcc666.top` | 绑定域名 |
 | `LETSENCRYPT_EMAIL` | `admin@jcc666.top` | 证书通知邮箱 |
 | `WEB_DIR` | `/var/www/games/space-fighter` | 站点根目录 |
+| `CERTBOT_WAIT_SECONDS` | `180` | Certbot 被其他进程占用时的最长等待秒数，设为 `0` 可关闭等待 |
+| `CERTBOT_RETRY_INTERVAL` | `5` | Certbot 被占用时的重试间隔秒数 |
 
 示例：
 
@@ -102,6 +104,7 @@ sudo certbot renew --dry-run
 | 现象 | 处理 |
 |------|------|
 | 证书签发失败 | 检查域名解析是否生效、80 端口是否可从公网访问 |
+| `Another instance of Certbot is already running` | 脚本默认自动等待最多 180 秒；超时后用 `systemctl status certbot.service` 检查占用进程 |
 | 改了代码线上没变化 | 升级 index.html 中的 `?v=N` 版本参数后强刷（Ctrl+F5） |
 | 502 / 403 | `nginx -t` 检查配置；确认 `${WEB_DIR}` 下存在 index.html |
 | 手柄无响应 | 页面需先获得焦点；按一次手柄任意键唤醒连接 |

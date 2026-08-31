@@ -8,6 +8,8 @@ set -Eeuo pipefail
 DOMAIN="${DOMAIN:-zj.games.jcc666.top}"
 LETSENCRYPT_EMAIL="${LETSENCRYPT_EMAIL:-admin@jcc666.top}"
 WEB_DIR="${WEB_DIR:-/var/www/games/space-fighter}"
+CERTBOT_WAIT_SECONDS="${CERTBOT_WAIT_SECONDS:-180}"
+CERTBOT_RETRY_INTERVAL="${CERTBOT_RETRY_INTERVAL:-5}"
 NGINX_AVAIL="/etc/nginx/sites-available/${DOMAIN}"
 NGINX_ENABLED="/etc/nginx/sites-enabled/${DOMAIN}"
 DEFAULT_NGINX="/etc/nginx/sites-enabled/default"
@@ -46,6 +48,11 @@ warn() {
 fail() {
   echo "[ERROR] $*"
   exit 1
+}
+
+validate_certbot_wait_config() {
+  [[ "${CERTBOT_WAIT_SECONDS}" =~ ^(0|[1-9][0-9]*)$ ]] || fail "CERTBOT_WAIT_SECONDS must be a non-negative integer."
+  [[ "${CERTBOT_RETRY_INTERVAL}" =~ ^[1-9][0-9]*$ ]] || fail "CERTBOT_RETRY_INTERVAL must be a positive integer."
 }
 
 detect_package_manager() {
@@ -118,20 +125,56 @@ EOF
 }
 
 issue_certificate_if_needed() {
+  local certbot_output
+  local certbot_status
+  local deadline
+  local remaining_wait
+  local retry_delay
+
   if [[ -f "${CERT_FULLCHAIN}" && -f "${CERT_PRIVKEY}" ]]; then
     log "SSL certificate already exists; skipping request"
     return
   fi
 
-  log "Requesting Let's Encrypt certificate for ${DOMAIN}"
-  run certbot certonly \
-    --webroot \
-    -w "${WEB_DIR}" \
-    -d "${DOMAIN}" \
-    --non-interactive \
-    --agree-tos \
-    --email "${LETSENCRYPT_EMAIL}" \
-    --keep-until-expiring
+  deadline=$((SECONDS + CERTBOT_WAIT_SECONDS))
+  while true; do
+    if [[ -f "${CERT_FULLCHAIN}" && -f "${CERT_PRIVKEY}" ]]; then
+      log "SSL certificate became available while waiting; skipping request"
+      return
+    fi
+
+    log "Requesting Let's Encrypt certificate for ${DOMAIN}"
+    certbot_status=0
+    certbot_output="$(run certbot certonly \
+      --webroot \
+      -w "${WEB_DIR}" \
+      -d "${DOMAIN}" \
+      --non-interactive \
+      --agree-tos \
+      --email "${LETSENCRYPT_EMAIL}" \
+      --keep-until-expiring 2>&1)" || certbot_status=$?
+    printf '%s\n' "${certbot_output}"
+
+    if ((certbot_status == 0)); then
+      break
+    fi
+
+    if [[ "${certbot_output}" != *"Another instance of Certbot"* ]]; then
+      fail "Certificate request failed. Check the Certbot output above."
+    fi
+
+    remaining_wait=$((deadline - SECONDS))
+    if ((remaining_wait <= 0)); then
+      fail "Another Certbot instance is still running after ${CERTBOT_WAIT_SECONDS}s. Check: systemctl status certbot.service"
+    fi
+
+    retry_delay="${CERTBOT_RETRY_INTERVAL}"
+    if ((retry_delay > remaining_wait)); then
+      retry_delay="${remaining_wait}"
+    fi
+    warn "Another Certbot instance is running; retrying in ${retry_delay}s"
+    sleep "${retry_delay}"
+  done
 
   [[ -f "${CERT_FULLCHAIN}" && -f "${CERT_PRIVKEY}" ]] || fail "Certificate request failed. Check DNS and port 80."
 }
@@ -204,6 +247,7 @@ enable_certbot_renew() {
 }
 
 log "===== [0/4] Environment check ====="
+validate_certbot_wait_config
 install_dependencies
 ensure_service "nginx"
 
