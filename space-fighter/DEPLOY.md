@@ -65,6 +65,40 @@ python -m http.server 8080
 - 证书已存在时跳过签发
 - 仅重写 Nginx 配置并 reload
 
+### 每 5 分钟自动部署
+
+使用 Git 克隆到 `/var/www/games` 后，可为 root 安装每 5 分钟执行一次的自动部署任务：
+
+```bash
+cd /var/www/games
+sudo /usr/bin/bash space-fighter/scripts/install_cron.sh
+sudo /usr/bin/bash space-fighter/scripts/auto_deploy.sh
+sudo crontab -l
+```
+
+cron 使用 `# BEGIN SPACE FIGHTER AUTO DEPLOY CRON` 标记块，只替换本项目自己的任务，不影响同一用户下的其他定时任务。重复运行安装脚本不会产生重复任务；标记残缺或重复时会拒绝修改 crontab。
+
+`auto_deploy.sh` 默认跟踪 `origin/main`，执行流程如下：
+
+1. 使用非阻塞文件锁避免多个部署任务重叠。
+2. 拒绝已跟踪文件存在本地改动、分支不为 `main` 或无法快进的仓库。
+3. 拉取远端更新，仅对尚未成功部署的提交执行 `deploy.sh`。
+4. 部署成功后记录提交；部署失败时保留旧状态，下个周期自动重试。
+
+自动部署日志按天写入仓库根目录下的 `.deploy/logs/space-fighter-auto-deploy-YYYYMMDD.log`，避免日志落入 Nginx 站点根目录；脚本会清理 3 天前的日志：
+
+```bash
+cd /var/www/games
+tail -f ".deploy/logs/space-fighter-auto-deploy-$(TZ=Asia/Shanghai date +%Y%m%d).log"
+```
+
+可通过环境变量覆盖仓库目录、分支和执行周期：
+
+```bash
+sudo env REPO_DIR=/var/www/games SCHEDULE='*/10 * * * *' \
+  /usr/bin/bash /var/www/games/space-fighter/scripts/install_cron.sh
+```
+
 ### 可配置环境变量
 
 | 变量 | 默认值 | 说明 |
