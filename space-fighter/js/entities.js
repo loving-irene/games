@@ -92,7 +92,7 @@ function showBanner(text, color, dur) {
 }
 
 // ---------------- 武器 ----------------
-// 10 个武器阶段 × 每阶段 5 级（共 50 级），吃 P 升级，阶段满 5 级后进化为下一阶段武器
+// 10 种可合成武器 × 每种 5 级；吃 P 提升当前武器等级，武器类型由模块配方决定
 // pattern 项：dx 水平偏移 / ang 角度(度) / dmg 伤害 / spd 弹速 /
 //             pierce 贯穿 / homing 追踪转向速度 / amp 横向摆动幅度 / chain 链电溅射 / big 大弹
 var WEAPON_STAGES = [
@@ -371,6 +371,15 @@ function updatePowerups(dt) {
     pu.t += dt;
     pu.y += 85 * dt;
     pu.x += Math.sin(pu.t * 3) * 30 * dt;
+    var magnet = pickupMagnetRadius();
+    if (magnet > 0) {
+      var dx = player.x - pu.x, dy = player.y - pu.y;
+      var d = Math.hypot(dx, dy);
+      if (d < magnet && d > 1) {
+        pu.x += dx / d * 240 * dt;
+        pu.y += dy / d * 240 * dt;
+      }
+    }
     if (pu.y > LH + 30) powerups.splice(i, 1);
   }
 }
@@ -380,24 +389,10 @@ function applyPowerup(kind) {
   switch (kind) {
     case 'P':
       if (player.wlevel < 5) {
-        // 阶段内升级
         player.wlevel++;
         sfx.levelup();
         addFloat('火力 Lv' + player.wlevel + '!', player.x, player.y - 30, WEAPON_STAGES[player.wstage - 1].color);
-      } else if (player.wstage < 10) {
-        // 满 5 级，进化为下一阶段武器！
-        player.wstage++;
-        player.wlevel = 1;
-        var ns = WEAPON_STAGES[player.wstage - 1];
-        G.flash = 0.5;
-        G.shake = 8;
-        explosion(player.x, player.y, 34, 26);
-        showBanner('武器进化 · ' + ns.name, ns.color, 2.2);
-        addFloat(ns.name + ' 解锁!', player.x, player.y - 34, ns.color);
-        sfx.evolve();
-        input.vibrate(320, 0.9, 0.6);
       } else {
-        // 10 阶 5 级满级
         G.score += 500; addFloat('+500', player.x, player.y - 30, '#6cf2ff');
       }
       break;
@@ -505,20 +500,27 @@ var director = {};
 function resetDirector() {
   director = {
     spawnT: 0, quota: 0, spawned: 0, waveDoneT: 1.5,
-    bossPending: false, bossWarnT: 0, bossLevel: 0, bossActive: false
+    bossPending: false, bossWarnT: 0, bossLevel: 0, bossActive: false,
+    flowDone: false
   };
 }
 
 function startWave(n) {
   G.wave = n;
+  director.waveDoneT = 1.5;
+  director.flowDone = false;
+  director.bossPending = false;
+  director.bossActive = false;
   if (n > 1 && player.alive) player.hp = player.maxHp; // 每过一关，生命值重置
   if (n % 5 === 0) {
+    setRunPhase('boss');
     director.bossPending = true;
     director.bossWarnT = 2.2;
     director.bossLevel = n / 5;
     showBanner('⚠ 警告：BOSS 来袭 ⚠', '#ff8a9a', 2.2);
     sfx.alarm();
   } else {
+    setRunPhase('combat');
     director.quota = Math.max(4, Math.round((8 + n * 2) * DIFF.countMul));
     director.spawned = 0;
     director.spawnT = 0.8;
@@ -539,8 +541,11 @@ function updateDirector(dt) {
   }
   if (director.bossActive) {
     if (!boss) {
-      director.bossActive = false;
-      director.waveDoneT = 2.4;
+      director.waveDoneT -= dt;
+      if (director.waveDoneT <= 0 && !director.flowDone) {
+        director.flowDone = true;
+        finishWaveFlow(G.wave);
+      }
     }
     return;
   }
@@ -552,7 +557,10 @@ function updateDirector(dt) {
     }
   } else if (enemies.length === 0) {
     director.waveDoneT -= dt;
-    if (director.waveDoneT <= 0) startWave(G.wave + 1);
+    if (director.waveDoneT <= 0 && !director.flowDone) {
+      director.flowDone = true;
+      finishWaveFlow(G.wave);
+    }
   }
 }
 
@@ -584,10 +592,10 @@ function updatePlayer(dt) {
 
   if (p.inv > 0) p.inv -= dt;
   p.cool -= dt;
-  // 自动发射：只要冷却结束就开火，无需手动按键
-  if (p.cool <= 0) {
+  // 战斗阶段自动发射；星门与休闲事件阶段仅保留移动
+  if (isAutoFireEnabled() && p.cool <= 0) {
     shoot();
-    p.cool = WEAPON_STAGES[p.wstage - 1].cool[p.wlevel - 1];
+    p.cool = weaponCooldown(WEAPON_STAGES[p.wstage - 1].cool[p.wlevel - 1]);
   }
 
   // 引擎尾焰
@@ -636,21 +644,22 @@ function playerHit() {
 }
 
 function useBomb() {
-  if (G.mode !== 'playing' || !player.alive || player.bombs <= 0) return;
+  if (G.mode !== 'playing' || !isCombatRunPhase() || !player.alive || player.bombs <= 0) return;
   player.bombs--;
   G.flash = 0.35;
   G.shake = 18;
   sfx.bomb();
   input.vibrate(520, 1, 0.9);
   ebullets.length = 0;
+  var damageMul = bombDamageMultiplier();
   for (var i = enemies.length - 1; i >= 0; i--) {
     var e = enemies[i];
-    e.hp -= 25;
+    e.hp -= Math.round(25 * damageMul);
     explosion(e.x, e.y, 18, 6);
     if (e.hp <= 0) killEnemy(i);
   }
   if (boss && boss.entered) {
-    boss.hp -= 45;
+    boss.hp -= Math.round(45 * damageMul);
     if (boss.hp <= 0) killBoss();
   }
   addFloat('全屏炸弹!', player.x, player.y - 40, '#ffd25d');

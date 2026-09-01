@@ -27,6 +27,8 @@
     this._bombEdge = false;
     this._pauseEdge = false;
     this._confirmEdge = false;
+    this._upEdge = false;
+    this._downEdge = false;
 
     // 手柄按键上一帧状态
     this._prev = {};
@@ -193,6 +195,8 @@
   Input.prototype.consumeBomb = function () { var v = this._bombEdge; this._bombEdge = false; return v; };
   Input.prototype.consumePause = function () { var v = this._pauseEdge; this._pauseEdge = false; return v; };
   Input.prototype.consumeConfirm = function () { var v = this._confirmEdge; this._confirmEdge = false; return v; };
+  Input.prototype.consumeUp = function () { var v = this._upEdge; this._upEdge = false; return v; };
+  Input.prototype.consumeDown = function () { var v = this._downEdge; this._downEdge = false; return v; };
 
   // PS5 手柄震动（Chrome / Edge 支持 vibrationActuator）
   Input.prototype.vibrate = function (duration, strong, weak) {

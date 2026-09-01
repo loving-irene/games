@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#04060f">
 <title>太空战机 · Space Fighter</title>
 <link rel="icon" href="data:,">
-<link rel="stylesheet" href="css/style.css?v=1.8">
+<link rel="stylesheet" href="css/style.css?v=2.1">
 </head>
 <body>
 <div id="stage">
@@ -42,6 +42,14 @@
         <span id="weapon"></span>
         <span id="weapon-name" class="hud-label"></span>
       </div>
+      <div class="hud-group">
+        <span class="hud-label">模块</span>
+        <span id="modules">—</span>
+      </div>
+    </div>
+    <div id="event-panel" class="hidden">
+      <span id="event-title"></span>
+      <strong id="event-progress"></strong>
     </div>
     <div id="boss-bar" class="hidden">
       <span id="boss-name">BOSS</span>
@@ -78,6 +86,15 @@
     <button id="btn-pause-restart" class="btn btn-ghost">重新开始</button>
   </div>
 
+  <!-- 波次间奖励 -->
+  <div id="screen-choice" class="screen choice-screen hidden">
+    <div class="choice-heading">
+      <h2 id="choice-title">选择强化</h2>
+      <p id="choice-subtitle"></p>
+    </div>
+    <div id="choice-list"></div>
+  </div>
+
   <!-- 结束 -->
   <div id="screen-over" class="screen hidden">
     <h2>游戏结束</h2>
@@ -93,10 +110,12 @@
   <!-- 移动端炸弹按钮 -->
   <button id="btn-bomb" class="hidden">💣</button>
 </div>
-<script src="js/input.js?v=1.9"></script>
-<script src="js/audio.js?v=1.9"></script>
-<script src="js/entities.js?v=1.9"></script>
-<script src="js/render.js?v=1.9"></script>
-<script src="js/game.js?v=1.9"></script>
+<script src="js/input.js?v=2.1"></script>
+<script src="js/audio.js?v=2.1"></script>
+<script src="js/entities.js?v=2.1"></script>
+<script src="js/progression.js?v=2.1"></script>
+<script src="js/events.js?v=2.1"></script>
+<script src="js/render.js?v=2.1"></script>
+<script src="js/game.js?v=2.1"></script>
 </body>
 </html>

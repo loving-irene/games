@@ -3,6 +3,53 @@
  * （共享全局作用域，加载顺序：entities.js -> render.js -> game.js）
  */
 
+var spriteSheet = new Image();
+spriteSheet.src = 'asset_2olOMyCNYNfeJq2s.png';
+
+var SPRITES = {
+  player: { x: 8, y: 18, w: 198, h: 244 },
+  enemies: {
+    grunt: { x: 620, y: 374, w: 198, h: 198 },
+    darter: { x: 956, y: 380, w: 164, h: 202 },
+    tank: { x: 790, y: 4, w: 356, h: 360 },
+    orb: { x: 1108, y: 348, w: 214, h: 278 },
+    asteroid: { x: 1286, y: 354, w: 250, h: 282 }
+  },
+  boss: { x: 1134, y: 0, w: 402, h: 348 },
+  weapons: [
+    { x: 36, y: 612, w: 46, h: 116, dw: 10, dh: 27 },
+    { x: 92, y: 612, w: 48, h: 148, dw: 12, dh: 29 },
+    { x: 263, y: 608, w: 70, h: 164, dw: 14, dh: 30 },
+    { x: 136, y: 608, w: 72, h: 416, dw: 11, dh: 46 },
+    { x: 458, y: 608, w: 62, h: 134, dw: 15, dh: 31 },
+    { x: 329, y: 608, w: 70, h: 160, dw: 16, dh: 35 },
+    { x: 442, y: 738, w: 84, h: 112, dw: 18, dh: 24 },
+    { x: 530, y: 612, w: 60, h: 92, dw: 14, dh: 23 },
+    { x: 636, y: 802, w: 198, h: 92, dw: 30, dh: 16 },
+    { x: 634, y: 916, w: 208, h: 100, dw: 34, dh: 17 }
+  ],
+  enemyBullet: { x: 394, y: 608, w: 60, h: 164, dw: 13, dh: 27 }
+};
+
+function drawSprite(sprite, x, y, w, h, rotation) {
+  if (!spriteSheet.complete || !spriteSheet.naturalWidth) return false;
+  ctx.save();
+  ctx.translate(x, y);
+  if (rotation) ctx.rotate(rotation);
+  ctx.drawImage(
+    spriteSheet,
+    sprite.x, sprite.y, sprite.w, sprite.h,
+    -w / 2, -h / 2, w, h
+  );
+  ctx.restore();
+  return true;
+}
+
+function drawMovingSprite(sprite, b) {
+  var angle = Math.atan2(b.vy || -1, b.vx || 0) + Math.PI / 2;
+  drawSprite(sprite, b.x, b.y, sprite.dw, sprite.dh, angle);
+}
+
 function drawBackground() {
   var grad = ctx.createLinearGradient(0, 0, 0, LH);
   grad.addColorStop(0, '#0a1030');
@@ -35,13 +82,12 @@ function drawPlayer() {
   var p = player;
   if (!p.alive) return;
   ctx.save();
-  ctx.translate(p.x, p.y);
   if (p.inv > 0 && Math.floor(G.time * 20) % 2 === 0) ctx.globalAlpha = 0.35;
 
   // 护盾
   if (p.shield) {
     ctx.beginPath();
-    ctx.arc(0, 0, 26, 0, TAU);
+    ctx.arc(p.x, p.y, 29, 0, TAU);
     ctx.strokeStyle = 'rgba(143,183,255,0.85)';
     ctx.lineWidth = 2;
     ctx.shadowColor = '#8fb7ff';
@@ -50,301 +96,166 @@ function drawPlayer() {
     ctx.shadowBlur = 0;
   }
 
-  // 引擎火焰
-  var f = 9 + Math.random() * 9;
-  ctx.beginPath();
-  ctx.moveTo(-4, 13);
-  ctx.lineTo(0, 13 + f);
-  ctx.lineTo(4, 13);
-  ctx.closePath();
-  ctx.fillStyle = '#6cf2ff';
-  ctx.shadowColor = '#6cf2ff';
-  ctx.shadowBlur = 8;
-  ctx.fill();
-  ctx.shadowBlur = 0;
-
-  // 机翼
-  ctx.beginPath();
-  ctx.moveTo(-4, -2);
-  ctx.lineTo(-17, 12);
-  ctx.lineTo(-6, 12);
-  ctx.closePath();
-  ctx.moveTo(4, -2);
-  ctx.lineTo(17, 12);
-  ctx.lineTo(6, 12);
-  ctx.closePath();
-  ctx.fillStyle = '#1b4d8f';
-  ctx.fill();
-
-  // 机身
-  ctx.beginPath();
-  ctx.moveTo(0, -20);
-  ctx.lineTo(10, 10);
-  ctx.lineTo(4, 14);
-  ctx.lineTo(-4, 14);
-  ctx.lineTo(-10, 10);
-  ctx.closePath();
-  ctx.fillStyle = '#39c6ff';
-  ctx.shadowColor = '#39c6ff';
-  ctx.shadowBlur = 10;
-  ctx.fill();
-  ctx.shadowBlur = 0;
-
-  // 座舱
-  ctx.beginPath();
-  ctx.ellipse(0, -4, 3, 6, 0, 0, TAU);
-  ctx.fillStyle = '#eaffff';
-  ctx.fill();
+  drawSprite(SPRITES.player, p.x, p.y, 54, 67, 0);
 
   ctx.restore();
 }
 
 function drawEnemy(e) {
-  ctx.save();
-  ctx.translate(e.x, e.y);
+  var sprite = SPRITES.enemies[e.type];
   switch (e.type) {
     case 'grunt':
-      ctx.beginPath();
-      ctx.moveTo(0, 14);
-      ctx.lineTo(-12, -8);
-      ctx.lineTo(-4, -10);
-      ctx.lineTo(0, -6);
-      ctx.lineTo(4, -10);
-      ctx.lineTo(12, -8);
-      ctx.closePath();
-      ctx.fillStyle = '#ff5d6c';
-      ctx.shadowColor = '#ff5d6c';
-      ctx.shadowBlur = 8;
-      ctx.fill();
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = '#ffe1e6';
-      ctx.fillRect(-2, -2, 4, 5);
+      drawSprite(sprite, e.x, e.y, 40, 40, 0);
       break;
     case 'darter':
-      ctx.beginPath();
-      ctx.moveTo(0, 16);
-      ctx.lineTo(-6, -10);
-      ctx.lineTo(0, -6);
-      ctx.lineTo(6, -10);
-      ctx.closePath();
-      ctx.fillStyle = '#ffd25d';
-      ctx.shadowColor = '#ffd25d';
-      ctx.shadowBlur = 8;
-      ctx.fill();
-      ctx.shadowBlur = 0;
+      drawSprite(sprite, e.x, e.y, 34, 42, 0);
       break;
     case 'tank':
-      ctx.beginPath();
-      for (var i = 0; i < 6; i++) {
-        var a = i * TAU / 6 + Math.PI / 6;
-        var px = Math.cos(a) * 22, py = Math.sin(a) * 22;
-        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-      }
-      ctx.closePath();
-      ctx.fillStyle = '#8b5cf6';
-      ctx.shadowColor = '#8b5cf6';
-      ctx.shadowBlur = 10;
-      ctx.fill();
-      ctx.shadowBlur = 0;
-      ctx.beginPath();
-      ctx.arc(0, 0, 8, 0, TAU);
-      ctx.fillStyle = '#2b0f33';
-      ctx.fill();
+      drawSprite(sprite, e.x, e.y, 68, 69, 0);
       break;
     case 'orb':
-      ctx.beginPath();
-      ctx.arc(0, 0, 16, 0, TAU);
-      ctx.strokeStyle = '#ff9e5c';
-      ctx.lineWidth = 3;
-      ctx.shadowColor = '#ff9e5c';
-      ctx.shadowBlur = 10;
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(0, 0, 7 + Math.sin(G.time * 5) * 1.5, 0, TAU);
-      ctx.fillStyle = '#ffd9a0';
-      ctx.fill();
-      ctx.shadowBlur = 0;
+      drawSprite(sprite, e.x, e.y, 52, 68, Math.sin(G.time * 2) * 0.05);
       break;
     case 'asteroid':
-      ctx.rotate(e.rot);
-      ctx.beginPath();
-      for (var v = 0; v < 8; v++) {
-        var ang = v * TAU / 8;
-        var rr = e.r * e.verts[v];
-        var vx = Math.cos(ang) * rr, vy = Math.sin(ang) * rr;
-        if (v === 0) ctx.moveTo(vx, vy); else ctx.lineTo(vx, vy);
-      }
-      ctx.closePath();
-      ctx.fillStyle = '#7a8296';
-      ctx.fill();
-      ctx.strokeStyle = '#4a5060';
-      ctx.lineWidth = 2;
-      ctx.stroke();
+      drawSprite(sprite, e.x, e.y, e.r * 2.2, e.r * 2.45, e.rot);
       break;
   }
-  ctx.restore();
 }
 
 function drawBoss() {
   var b = boss;
-  ctx.save();
-  ctx.translate(b.x, b.y);
-
-  // 侧炮
-  ctx.fillStyle = '#521b3f';
-  ctx.fillRect(-92, -6, 22, 28);
-  ctx.fillRect(70, -6, 22, 28);
-
-  // 主体
-  ctx.beginPath();
-  ctx.ellipse(0, 0, 74, 40, 0, 0, TAU);
-  ctx.fillStyle = '#2b0f33';
-  ctx.shadowColor = '#ff3b5c';
-  ctx.shadowBlur = 18;
-  ctx.fill();
-  ctx.strokeStyle = '#ff3b5c';
-  ctx.lineWidth = 3;
-  ctx.stroke();
-  ctx.shadowBlur = 0;
-
-  // 装甲线
-  ctx.strokeStyle = 'rgba(255,90,120,0.5)';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.ellipse(0, 0, 52, 26, 0, 0, TAU);
-  ctx.stroke();
-
-  // 核心
-  var pulse = 0.75 + 0.25 * Math.sin(G.time * 6);
-  ctx.beginPath();
-  ctx.arc(0, 4, 16 * pulse + 5, 0, TAU);
-  ctx.fillStyle = b.phase === 2 ? '#ff8a5c' : '#ff3b5c';
-  ctx.shadowColor = '#ff5d6c';
-  ctx.shadowBlur = 26;
-  ctx.fill();
-  ctx.shadowBlur = 0;
-
-  // 传感眼
-  ctx.beginPath();
-  ctx.ellipse(0, -18, 26, 8, 0, 0, TAU);
-  ctx.fillStyle = '#ffe1e6';
-  ctx.fill();
-
-  ctx.restore();
+  var pulse = 1 + Math.sin(G.time * 4) * 0.02;
+  drawSprite(SPRITES.boss, b.x, b.y, 184 * pulse, 164 * pulse, 0);
 }
 
 function drawBullets() {
   for (var i = 0; i < bullets.length; i++) {
     var b = bullets[i];
-    switch (b.kind) {
-      case 1: // 脉冲机炮：青色胶囊
-        ctx.fillStyle = 'rgba(108,242,255,0.35)';
-        ctx.fillRect(b.x - 4, b.y - 12, 8, 20);
-        ctx.fillStyle = '#d9fbff';
-        ctx.fillRect(b.x - 2, b.y - 9, 4, 14);
-        break;
-      case 2: // 广域散弹：绿色光点
-        ctx.fillStyle = 'rgba(157,255,138,0.3)';
-        ctx.beginPath(); ctx.arc(b.x, b.y, 6, 0, TAU); ctx.fill();
-        ctx.fillStyle = '#eaffdc';
-        ctx.beginPath(); ctx.arc(b.x, b.y, 3, 0, TAU); ctx.fill();
-        break;
-      case 3: // 追踪飞弹：黄色导弹 + 尾焰
-        ctx.fillStyle = 'rgba(255,210,93,0.35)';
-        ctx.fillRect(b.x - 2, b.y + 4, 4, 12);
-        ctx.fillStyle = '#ffd25d';
-        ctx.fillRect(b.x - 3, b.y - 8, 6, 14);
-        ctx.fillStyle = '#fff3c4';
-        ctx.fillRect(b.x - 1.5, b.y - 10, 3, 5);
-        break;
-      case 4: // 光子长矛：冰蓝细长贯穿束
-        ctx.fillStyle = 'rgba(125,223,255,0.3)';
-        ctx.fillRect(b.x - 3, b.y - 22, 6, 40);
-        ctx.fillStyle = '#eafcff';
-        ctx.fillRect(b.x - 1, b.y - 18, 2, 32);
-        break;
-      case 5: // 回旋刃：粉色菱形刃
-        ctx.fillStyle = 'rgba(255,157,226,0.35)';
-        ctx.beginPath();
-        ctx.moveTo(b.x, b.y - 12); ctx.lineTo(b.x + 7, b.y);
-        ctx.lineTo(b.x, b.y + 12); ctx.lineTo(b.x - 7, b.y);
-        ctx.closePath(); ctx.fill();
-        ctx.fillStyle = '#ffe3f6';
-        ctx.beginPath();
-        ctx.moveTo(b.x, b.y - 6); ctx.lineTo(b.x + 3.5, b.y);
-        ctx.lineTo(b.x, b.y + 6); ctx.lineTo(b.x - 3.5, b.y);
-        ctx.closePath(); ctx.fill();
-        break;
-      case 6: // 离子贯穿炮：紫色粗束
-        ctx.fillStyle = 'rgba(183,140,255,0.35)';
-        ctx.fillRect(b.x - 5, b.y - 18, 10, 32);
-        ctx.fillStyle = '#e8d6ff';
-        ctx.fillRect(b.x - 2, b.y - 14, 4, 24);
-        break;
-      case 7: // 电弧链射：白青电球 + 电弧
-        ctx.fillStyle = 'rgba(167,244,255,0.3)';
-        ctx.beginPath(); ctx.arc(b.x, b.y, 8, 0, TAU); ctx.fill();
-        ctx.fillStyle = '#d6fbff';
-        ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, TAU); ctx.fill();
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(b.x - 6, b.y + Math.random() * 6 - 3);
-        ctx.lineTo(b.x + 6, b.y + Math.random() * 6 - 3);
-        ctx.stroke();
-        break;
-      case 8: // 棱镜弹幕：金色小菱形
-        ctx.fillStyle = 'rgba(255,226,122,0.35)';
-        ctx.beginPath();
-        ctx.moveTo(b.x, b.y - 9); ctx.lineTo(b.x + 5, b.y);
-        ctx.lineTo(b.x, b.y + 9); ctx.lineTo(b.x - 5, b.y);
-        ctx.closePath(); ctx.fill();
-        ctx.fillStyle = '#fffbe8';
-        ctx.fillRect(b.x - 1, b.y - 4, 2, 8);
-        break;
-      case 9: // 等离子重炮：橙红大光球
-        ctx.fillStyle = 'rgba(255,138,92,0.35)';
-        ctx.beginPath(); ctx.arc(b.x, b.y, 13, 0, TAU); ctx.fill();
-        ctx.fillStyle = '#ffb28a';
-        ctx.beginPath(); ctx.arc(b.x, b.y, 8, 0, TAU); ctx.fill();
-        ctx.fillStyle = '#fff1e8';
-        ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, TAU); ctx.fill();
-        break;
-      case 10: // 星辰风暴：白色星芒
-        ctx.fillStyle = 'rgba(255,255,255,0.3)';
-        ctx.beginPath(); ctx.arc(b.x, b.y, 9, 0, TAU); ctx.fill();
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(b.x - 6, b.y - 1, 12, 2);
-        ctx.fillRect(b.x - 1, b.y - 6, 2, 12);
-        ctx.beginPath();
-        ctx.moveTo(b.x, b.y - 8); ctx.lineTo(b.x + 2.5, b.y - 2.5);
-        ctx.lineTo(b.x + 8, b.y); ctx.lineTo(b.x + 2.5, b.y + 2.5);
-        ctx.lineTo(b.x, b.y + 8); ctx.lineTo(b.x - 2.5, b.y + 2.5);
-        ctx.lineTo(b.x - 8, b.y); ctx.lineTo(b.x - 2.5, b.y - 2.5);
-        ctx.closePath(); ctx.fill();
-        break;
-      default: // 兜底：青色胶囊
-        ctx.fillStyle = 'rgba(108,242,255,0.35)';
-        ctx.fillRect(b.x - 4, b.y - 12, 8, 20);
-        ctx.fillStyle = '#d9fbff';
-        ctx.fillRect(b.x - 2, b.y - 9, 4, 14);
-        break;
-    }
+    drawMovingSprite(SPRITES.weapons[(b.kind || 1) - 1] || SPRITES.weapons[0], b);
   }
 }
 
 function drawEBullets() {
   for (var i = 0; i < ebullets.length; i++) {
-    var b = ebullets[i];
-    ctx.beginPath();
-    ctx.arc(b.x, b.y, 7, 0, TAU);
-    ctx.fillStyle = 'rgba(255,120,60,0.4)';
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(b.x, b.y, 4, 0, TAU);
-    ctx.fillStyle = '#ffd9a0';
-    ctx.fill();
+    drawMovingSprite(SPRITES.enemyBullet, ebullets[i]);
   }
+}
+
+function drawRouteGates() {
+  for (var i = 0; i < routeGates.length; i++) {
+    var gate = routeGates[i];
+    var def = EVENT_DEFS[gate.kind];
+    var pulse = 1 + Math.sin(gate.t * 4) * 0.06;
+    ctx.save();
+    ctx.translate(gate.x, gate.y);
+    ctx.strokeStyle = def.color;
+    ctx.lineWidth = 5;
+    ctx.shadowColor = def.color;
+    ctx.shadowBlur = 22;
+    ctx.beginPath();
+    ctx.arc(0, 0, gate.r * pulse, 0, TAU);
+    ctx.stroke();
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = 0.55;
+    ctx.beginPath();
+    ctx.arc(0, 0, gate.r * 0.68, -gate.t, TAU - gate.t);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#eaf6ff';
+    ctx.font = '700 16px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(def.name, 0, 0);
+    ctx.fillStyle = def.color;
+    ctx.font = '12px sans-serif';
+    ctx.fillText(def.reward, 0, 21);
+    ctx.restore();
+  }
+}
+
+function drawEventItems() {
+  for (var i = 0; i < eventItems.length; i++) {
+    var item = eventItems[i];
+    ctx.save();
+    ctx.translate(item.x, item.y);
+    if (item.kind === 'part') {
+      ctx.rotate(item.t);
+      ctx.fillStyle = '#6cf2ff';
+      ctx.shadowColor = '#6cf2ff';
+      ctx.shadowBlur = 12;
+      ctx.beginPath();
+      ctx.moveTo(0, -12); ctx.lineTo(9, 0); ctx.lineTo(0, 12); ctx.lineTo(-9, 0);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#eaffff';
+      ctx.fillRect(-2, -6, 4, 12);
+    } else {
+      ctx.fillStyle = '#dfffee';
+      ctx.strokeStyle = '#7dffb0';
+      ctx.lineWidth = 2;
+      ctx.shadowColor = '#7dffb0';
+      ctx.shadowBlur = 12;
+      ctx.beginPath();
+      ctx.roundRect(-11, -17, 22, 34, 8);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#173a4a';
+      ctx.beginPath(); ctx.arc(0, -5, 4, 0, TAU); ctx.fill();
+      ctx.fillRect(-5, 1, 10, 8);
+    }
+    ctx.restore();
+  }
+}
+
+function drawEventHazards() {
+  for (var i = 0; i < eventHazards.length; i++) {
+    var hazard = eventHazards[i];
+    if (hazard.kind === 'hunter') {
+      drawSprite(SPRITES.enemies.grunt, hazard.x, hazard.y, 42, 42, 0);
+      continue;
+    }
+    ctx.save();
+    ctx.translate(hazard.x, hazard.y);
+    ctx.rotate(hazard.t);
+    ctx.fillStyle = '#3c1820';
+    ctx.strokeStyle = '#ff5d6c';
+    ctx.lineWidth = 2;
+    ctx.shadowColor = '#ff5d6c';
+    ctx.shadowBlur = 10;
+    for (var p = 0; p < 8; p++) {
+      ctx.rotate(TAU / 8);
+      ctx.fillRect(-2, -23, 4, 10);
+    }
+    ctx.beginPath(); ctx.arc(0, 0, 14, 0, TAU); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#ffd25d';
+    ctx.beginPath(); ctx.arc(0, 0, 4, 0, TAU); ctx.fill();
+    ctx.restore();
+  }
+}
+
+function drawEventWalls() {
+  for (var i = 0; i < eventWalls.length; i++) {
+    var wall = eventWalls[i];
+    var leftEnd = wall.gapX - wall.gapW / 2;
+    var rightStart = wall.gapX + wall.gapW / 2;
+    ctx.save();
+    ctx.fillStyle = wall.hit ? 'rgba(255,90,80,0.35)' : 'rgba(255,130,70,0.55)';
+    ctx.shadowColor = '#ff8a5c';
+    ctx.shadowBlur = 14;
+    ctx.fillRect(0, wall.y - wall.h / 2, leftEnd, wall.h);
+    ctx.fillRect(rightStart, wall.y - wall.h / 2, LW - rightStart, wall.h);
+    ctx.fillStyle = '#fff1d0';
+    ctx.fillRect(0, wall.y - 2, leftEnd, 4);
+    ctx.fillRect(rightStart, wall.y - 2, LW - rightStart, 4);
+    ctx.restore();
+  }
+}
+
+function drawRunObjects() {
+  if (runState.phase === 'gate') drawRouteGates();
+  if (runState.phase !== 'event') return;
+  drawEventWalls();
+  drawEventItems();
+  drawEventHazards();
 }
 
 var PU_COLORS = { P: '#6cf2ff', H: '#7dffb0', S: '#8fb7ff', B: '#ffd25d' };
@@ -437,6 +348,7 @@ function render() {
 
   drawBackground();
   drawStars();
+  drawRunObjects();
   drawPowerups();
   for (var i = 0; i < enemies.length; i++) drawEnemy(enemies[i]);
   if (boss) drawBoss();
