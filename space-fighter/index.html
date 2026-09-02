@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#04060f">
 <title>太空战机 · Space Fighter</title>
 <link rel="icon" href="data:,">
-<link rel="stylesheet" href="css/style.css?v=2.1">
+<link rel="stylesheet" href="css/style.css?v=2.5">
 </head>
 <body>
 <div id="stage">
@@ -75,7 +75,7 @@
       <button id="btn-infinite" class="mode-btn">♾️ 无限生命：关</button>
     </div>
     <button id="btn-start" class="btn">开始游戏</button>
-    <p class="hint">按 ✕ / 空格 开始 · 每 5 波出现 BOSS</p>
+    <p class="hint">按 ✕ / 空格 开始 · 每 30 波出现 BOSS</p>
   </div>
 
   <!-- 暂停 -->
@@ -84,13 +84,15 @@
     <p id="pause-info"></p>
     <button id="btn-resume" class="btn">继续 (✕ / Esc)</button>
     <button id="btn-pause-restart" class="btn btn-ghost">重新开始</button>
+    <button id="btn-pause-home" class="btn btn-ghost">回到首页</button>
   </div>
 
   <!-- 波次间奖励 -->
   <div id="screen-choice" class="screen choice-screen hidden">
     <div class="choice-heading">
-      <h2 id="choice-title">选择强化</h2>
+      <h2 id="choice-title">选择小游戏</h2>
       <p id="choice-subtitle"></p>
+      <strong id="choice-timer"></strong>
     </div>
     <div id="choice-list"></div>
   </div>
@@ -110,12 +112,12 @@
   <!-- 移动端炸弹按钮 -->
   <button id="btn-bomb" class="hidden">💣</button>
 </div>
-<script src="js/input.js?v=2.1"></script>
-<script src="js/audio.js?v=2.1"></script>
-<script src="js/entities.js?v=2.1"></script>
-<script src="js/progression.js?v=2.1"></script>
-<script src="js/events.js?v=2.1"></script>
-<script src="js/render.js?v=2.1"></script>
-<script src="js/game.js?v=2.1"></script>
+<script src="js/input.js?v=2.5"></script>
+<script src="js/audio.js?v=2.5"></script>
+<script src="js/entities.js?v=2.5"></script>
+<script src="js/progression.js?v=2.5"></script>
+<script src="js/events.js?v=2.5"></script>
+<script src="js/render.js?v=2.5"></script>
+<script src="js/game.js?v=2.5"></script>
 </body>
 </html>

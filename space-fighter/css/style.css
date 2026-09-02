@@ -379,6 +379,15 @@ h2 {
   font-size: 13px;
 }
 
+#choice-timer {
+  display: block;
+  margin-top: 6px;
+  color: #ffd25d;
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 10px rgba(255, 210, 93, 0.65);
+}
+
 #choice-list {
   width: min(720px, calc(100vw - 32px));
   display: grid;

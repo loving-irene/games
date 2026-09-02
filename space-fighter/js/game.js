@@ -19,13 +19,13 @@ var ui = {
   bossBar: $('boss-bar'), bossName: $('boss-name'), bossHp: $('boss-hp'),
   eventPanel: $('event-panel'), eventTitle: $('event-title'), eventProgress: $('event-progress'),
   start: $('screen-start'), pause: $('screen-pause'), over: $('screen-over'),
-  choice: $('screen-choice'), choiceTitle: $('choice-title'), choiceSubtitle: $('choice-subtitle'), choiceList: $('choice-list'),
+  choice: $('screen-choice'), choiceTitle: $('choice-title'), choiceSubtitle: $('choice-subtitle'), choiceTimer: $('choice-timer'), choiceList: $('choice-list'),
   finalScore: $('final-score'), padStatus: $('pad-status'),
   btnStart: $('btn-start'), btnResume: $('btn-resume'),
   btnRestart: $('btn-restart'), btnBomb: $('btn-bomb'),
   btnHome: $('btn-home'),
   btnPause: $('btn-pause'), pauseInfo: $('pause-info'),
-  btnPauseRestart: $('btn-pause-restart'),
+  btnPauseRestart: $('btn-pause-restart'), btnPauseHome: $('btn-pause-home'),
   btnModeEasy: $('btn-mode-easy'), btnModeNormal: $('btn-mode-normal'),
   btnInfinite: $('btn-infinite')
 };
@@ -150,6 +150,7 @@ function showRewardChoice(title, subtitle, choices, onPick) {
   rewardCallback = onPick;
   ui.choiceTitle.textContent = title;
   ui.choiceSubtitle.textContent = subtitle;
+  ui.choiceTimer.textContent = '';
   ui.choiceList.innerHTML = '';
   var buttons = [];
   choices.forEach(function (choice) {
@@ -173,6 +174,37 @@ function showRewardChoice(title, subtitle, choices, onPick) {
       if (!activeMenu) return;
       var idx = activeMenu.items.indexOf(btn);
       if (idx >= 0) setMenuFocus(activeMenu, idx);
+    });
+    ui.choiceList.appendChild(btn);
+    buttons.push(btn);
+  });
+  hideMenu();
+  activeMenu = { items: buttons, defIdx: 0, idx: 0 };
+  setMenuFocus(activeMenu, 0);
+  ui.choice.classList.remove('hidden');
+  ui.btnBomb.classList.add('hidden');
+  ui.btnPause.classList.add('hidden');
+}
+
+function showMiniGameChoice(choices, onPick) {
+  rewardCallback = onPick;
+  ui.choiceTitle.textContent = '选择小游戏';
+  ui.choiceSubtitle.textContent = '本关仅出现一次，5 秒内未选择将直接跳过';
+  ui.choiceTimer.textContent = Math.ceil(runState.choiceTime) + 's';
+  ui.choiceList.innerHTML = '';
+  var buttons = [];
+  choices.forEach(function (choice) {
+    var btn = document.createElement('button');
+    btn.className = 'choice-item mini-game-choice';
+    btn.innerHTML = '<span class="choice-icon">' + choice.icon + '</span>'
+      + '<span class="choice-name">' + choice.name + '</span>'
+      + '<span class="choice-detail">' + choice.desc + '</span>';
+    btn.addEventListener('click', function () {
+      if (!rewardCallback) return;
+      var callback = rewardCallback;
+      rewardCallback = null;
+      hideRewardChoice();
+      callback(choice.id);
     });
     ui.choiceList.appendChild(btn);
     buttons.push(btn);
@@ -318,7 +350,7 @@ function handleGlobalInput() {
       else if (confirm) activeMenu.items[activeMenu.idx].click();
       break;
     case 'playing':
-      if (runState.phase === 'reward') {
+      if (runState.phase === 'reward' || runState.phase === 'mini-choice') {
         if (up && activeMenu) { setMenuFocus(activeMenu, activeMenu.idx - 1); moved = true; }
         else if (down && activeMenu) { setMenuFocus(activeMenu, activeMenu.idx + 1); moved = true; }
         if (moved) sfx.select();
@@ -348,7 +380,7 @@ function update(dt) {
   G.time += dt;
   if (banner.t > 0) banner.t -= dt;
   updateBg(dt);
-  if (runState.phase !== 'reward') updatePlayer(dt);
+  if (isCombatRunPhase()) updatePlayer(dt);
   if (isCombatRunPhase()) {
     updateDirector(dt);
     updateEnemies(dt);
@@ -357,7 +389,7 @@ function update(dt) {
     updateEBullets(dt);
     updatePowerups(dt);
     handleCollisions();
-  } else if (runState.phase === 'gate' || runState.phase === 'event') {
+  } else if (runState.phase === 'mini-choice' || runState.phase === 'minigame') {
     updateRunFlow(dt);
   }
   updateParticles(dt);
@@ -435,6 +467,7 @@ ui.btnPause.addEventListener('pointerdown', function (e) {
   pauseGame();
 });
 ui.btnPauseRestart.addEventListener('click', startGame);
+ui.btnPauseHome.addEventListener('click', backToMenu);
 
 canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); });
 

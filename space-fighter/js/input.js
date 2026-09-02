@@ -22,6 +22,7 @@
     this.moveX = 0;
     this.moveY = 0;
     this.fire = false;
+    this.fireStrength = 0;
 
     // 边沿触发（每帧消费一次）
     this._bombEdge = false;
@@ -123,7 +124,7 @@
 
   // 每帧调用：聚合所有输入源
   Input.prototype.poll = function () {
-    var mx = 0, my = 0, fire = false;
+    var mx = 0, my = 0, fire = false, fireStrength = 0;
     var i, b;
 
     // 键盘
@@ -131,7 +132,7 @@
     if (this.keys.has('ArrowRight') || this.keys.has('KeyD')) mx += 1;
     if (this.keys.has('ArrowUp') || this.keys.has('KeyW')) my -= 1;
     if (this.keys.has('ArrowDown') || this.keys.has('KeyS')) my += 1;
-    if (this.keys.has('Space') || this.keys.has('KeyJ')) fire = true;
+    if (this.keys.has('Space') || this.keys.has('KeyJ')) { fire = true; fireStrength = 1; }
 
     // 手柄
     var pads = navigator.getGamepads ? navigator.getGamepads() : [];
@@ -158,7 +159,10 @@
       var cross = b[0] && b[0].pressed;
       var r2 = b[7] && b[7].value > 0.4;
       var r1 = b[5] && b[5].pressed;
-      if (cross || r2 || r1) fire = true;
+      if (cross || r2 || r1) {
+        fire = true;
+        fireStrength = Math.max(cross ? (b[0].value || 1) : 0, r2 ? (b[7].value || 0) : 0, r1 ? (b[5].value || 1) : 0);
+      }
 
       var pressed = function (idx) { return !!(b[idx] && b[idx].pressed); };
 
@@ -185,11 +189,12 @@
     }
 
     // 触屏：触摸即开火
-    if (this.touchActive) fire = true;
+    if (this.touchActive) { fire = true; fireStrength = 1; }
 
     this.moveX = Math.max(-1, Math.min(1, mx));
     this.moveY = Math.max(-1, Math.min(1, my));
     this.fire = fire;
+    this.fireStrength = fireStrength;
   };
 
   Input.prototype.consumeBomb = function () { var v = this._bombEdge; this._bombEdge = false; return v; };

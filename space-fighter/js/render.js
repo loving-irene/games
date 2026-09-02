@@ -6,6 +6,15 @@
 var spriteSheet = new Image();
 spriteSheet.src = 'asset_2olOMyCNYNfeJq2s.png';
 
+var lootSheet = new Image();
+lootSheet.src = encodeURI('掉落物素材.png');
+var LOOT_SPRITES = {
+  // 素材图为 5 列 × 3 行，分别取心形、蓝色武器和蓝色护盾图标。
+  H: { x: 18, y: 16, w: 270, h: 270 },
+  P: { x: 306, y: 300, w: 305, h: 330 },
+  S: { x: 1220, y: 680, w: 300, h: 310 }
+};
+
 var SPRITES = {
   player: { x: 8, y: 18, w: 198, h: 244 },
   enemies: {
@@ -141,129 +150,108 @@ function drawEBullets() {
   }
 }
 
-function drawRouteGates() {
-  for (var i = 0; i < routeGates.length; i++) {
-    var gate = routeGates[i];
-    var def = EVENT_DEFS[gate.kind];
-    var pulse = 1 + Math.sin(gate.t * 4) * 0.06;
-    ctx.save();
-    ctx.translate(gate.x, gate.y);
-    ctx.strokeStyle = def.color;
-    ctx.lineWidth = 5;
-    ctx.shadowColor = def.color;
-    ctx.shadowBlur = 22;
-    ctx.beginPath();
-    ctx.arc(0, 0, gate.r * pulse, 0, TAU);
-    ctx.stroke();
-    ctx.lineWidth = 2;
-    ctx.globalAlpha = 0.55;
-    ctx.beginPath();
-    ctx.arc(0, 0, gate.r * 0.68, -gate.t, TAU - gate.t);
-    ctx.stroke();
-    ctx.globalAlpha = 1;
-    ctx.shadowBlur = 0;
-    ctx.fillStyle = '#eaf6ff';
-    ctx.font = '700 16px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(def.name, 0, 0);
-    ctx.fillStyle = def.color;
-    ctx.font = '12px sans-serif';
-    ctx.fillText(def.reward, 0, 21);
-    ctx.restore();
-  }
+function drawMiniGame() {
+  var game = runState.miniGame;
+  if (!game) return;
+  if (game.kind === 'maze') drawMazeGame(game);
+  else drawJumpGame(game);
 }
 
-function drawEventItems() {
-  for (var i = 0; i < eventItems.length; i++) {
-    var item = eventItems[i];
-    ctx.save();
-    ctx.translate(item.x, item.y);
-    if (item.kind === 'part') {
-      ctx.rotate(item.t);
-      ctx.fillStyle = '#6cf2ff';
-      ctx.shadowColor = '#6cf2ff';
-      ctx.shadowBlur = 12;
-      ctx.beginPath();
-      ctx.moveTo(0, -12); ctx.lineTo(9, 0); ctx.lineTo(0, 12); ctx.lineTo(-9, 0);
-      ctx.closePath(); ctx.fill();
-      ctx.fillStyle = '#eaffff';
-      ctx.fillRect(-2, -6, 4, 12);
-    } else {
-      ctx.fillStyle = '#dfffee';
-      ctx.strokeStyle = '#7dffb0';
-      ctx.lineWidth = 2;
-      ctx.shadowColor = '#7dffb0';
-      ctx.shadowBlur = 12;
-      ctx.beginPath();
-      ctx.roundRect(-11, -17, 22, 34, 8);
-      ctx.fill(); ctx.stroke();
-      ctx.fillStyle = '#173a4a';
-      ctx.beginPath(); ctx.arc(0, -5, 4, 0, TAU); ctx.fill();
-      ctx.fillRect(-5, 1, 10, 8);
-    }
-    ctx.restore();
+function drawMazeGame(game) {
+  var m = game.maze;
+  ctx.save();
+  ctx.fillStyle = 'rgba(4, 12, 28, 0.94)';
+  ctx.fillRect(m.ox - 8, m.oy - 8, m.cols * m.cell + 16, m.rows * m.cell + 16);
+  for (var y = 0; y < m.rows; y++) for (var x = 0; x < m.cols; x++) {
+    if (!m.grid[y][x]) continue;
+    ctx.fillStyle = 'rgba(48, 105, 155, 0.82)';
+    ctx.strokeStyle = 'rgba(108, 242, 255, 0.45)';
+    ctx.fillRect(m.ox + x * m.cell, m.oy + y * m.cell, m.cell, m.cell);
+    ctx.strokeRect(m.ox + x * m.cell + 1, m.oy + y * m.cell + 1, m.cell - 2, m.cell - 2);
   }
+  var gx = m.ox + (m.goal.x + 0.5) * m.cell, gy = m.oy + (m.goal.y + 0.5) * m.cell;
+  ctx.fillStyle = '#7dffb0';
+  ctx.shadowColor = '#7dffb0';
+  ctx.shadowBlur = 18;
+  ctx.beginPath(); ctx.arc(gx, gy, 13 + Math.sin(G.time * 5) * 3, 0, TAU); ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#062218';
+  ctx.font = '700 13px sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('终', gx, gy);
+  ctx.restore();
 }
 
-function drawEventHazards() {
-  for (var i = 0; i < eventHazards.length; i++) {
-    var hazard = eventHazards[i];
-    if (hazard.kind === 'hunter') {
-      drawSprite(SPRITES.enemies.grunt, hazard.x, hazard.y, 42, 42, 0);
-      continue;
-    }
-    ctx.save();
-    ctx.translate(hazard.x, hazard.y);
-    ctx.rotate(hazard.t);
-    ctx.fillStyle = '#3c1820';
-    ctx.strokeStyle = '#ff5d6c';
-    ctx.lineWidth = 2;
-    ctx.shadowColor = '#ff5d6c';
-    ctx.shadowBlur = 10;
-    for (var p = 0; p < 8; p++) {
-      ctx.rotate(TAU / 8);
-      ctx.fillRect(-2, -23, 4, 10);
-    }
-    ctx.beginPath(); ctx.arc(0, 0, 14, 0, TAU); ctx.fill(); ctx.stroke();
+function drawJumpGame(game) {
+  var meteors = game.jump.meteors;
+  ctx.save();
+  for (var i = 0; i < meteors.length; i++) {
+    var meteor = meteors[i];
+    var active = i <= game.jump.meteorIndex;
+    ctx.fillStyle = active ? 'rgba(125, 255, 176, 0.78)' : 'rgba(255, 210, 93, 0.78)';
+    ctx.shadowColor = active ? '#7dffb0' : '#ffd25d';
+    ctx.shadowBlur = 12;
+    ctx.beginPath();
+    ctx.moveTo(meteor.x - meteor.r, meteor.y);
+    ctx.lineTo(meteor.x - meteor.r * 0.55, meteor.y - 13);
+    ctx.lineTo(meteor.x + meteor.r * 0.55, meteor.y - 15);
+    ctx.lineTo(meteor.x + meteor.r, meteor.y - 2);
+    ctx.lineTo(meteor.x + meteor.r * 0.62, meteor.y + 10);
+    ctx.lineTo(meteor.x - meteor.r * 0.7, meteor.y + 9);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#fff4c2';
+    ctx.fillRect(meteor.x - meteor.r * 0.55, meteor.y - 3, meteor.r * 1.1, 3);
+  }
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.72)';
+  ctx.font = '12px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('按住跳跃键蓄力，松开起跳 · 左右调整落点', LW / 2, 82);
+  if (game.jump.charging) {
+    var barW = 190, progress = game.jump.charge / game.jump.maxCharge;
+    ctx.fillStyle = 'rgba(8, 16, 38, 0.8)';
+    ctx.fillRect(LW / 2 - barW / 2, 98, barW, 10);
     ctx.fillStyle = '#ffd25d';
-    ctx.beginPath(); ctx.arc(0, 0, 4, 0, TAU); ctx.fill();
-    ctx.restore();
+    ctx.fillRect(LW / 2 - barW / 2, 98, barW * progress, 10);
+    ctx.strokeStyle = '#fff4c2';
+    ctx.strokeRect(LW / 2 - barW / 2, 98, barW, 10);
   }
-}
-
-function drawEventWalls() {
-  for (var i = 0; i < eventWalls.length; i++) {
-    var wall = eventWalls[i];
-    var leftEnd = wall.gapX - wall.gapW / 2;
-    var rightStart = wall.gapX + wall.gapW / 2;
-    ctx.save();
-    ctx.fillStyle = wall.hit ? 'rgba(255,90,80,0.35)' : 'rgba(255,130,70,0.55)';
-    ctx.shadowColor = '#ff8a5c';
-    ctx.shadowBlur = 14;
-    ctx.fillRect(0, wall.y - wall.h / 2, leftEnd, wall.h);
-    ctx.fillRect(rightStart, wall.y - wall.h / 2, LW - rightStart, wall.h);
-    ctx.fillStyle = '#fff1d0';
-    ctx.fillRect(0, wall.y - 2, leftEnd, 4);
-    ctx.fillRect(rightStart, wall.y - 2, LW - rightStart, 4);
-    ctx.restore();
-  }
+  ctx.restore();
 }
 
 function drawRunObjects() {
-  if (runState.phase === 'gate') drawRouteGates();
-  if (runState.phase !== 'event') return;
-  drawEventWalls();
-  drawEventItems();
-  drawEventHazards();
+  if (runState.phase === 'minigame') drawMiniGame();
 }
 
 var PU_COLORS = { P: '#6cf2ff', H: '#7dffb0', S: '#8fb7ff', B: '#ffd25d' };
+
+function drawLootSprite(pu, color) {
+  var sprite = LOOT_SPRITES[pu.kind];
+  if (!sprite || !lootSheet.complete || !lootSheet.naturalWidth) return false;
+  ctx.save();
+  ctx.translate(pu.x, pu.y);
+  ctx.beginPath();
+  ctx.arc(0, 0, 20, 0, TAU);
+  ctx.clip();
+  ctx.drawImage(lootSheet, sprite.x, sprite.y, sprite.w, sprite.h, -22, -22, 44, 44);
+  ctx.restore();
+  ctx.beginPath();
+  ctx.arc(pu.x, pu.y, 21, 0, TAU);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 12;
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  return true;
+}
 
 function drawPowerups() {
   for (var i = 0; i < powerups.length; i++) {
     var pu = powerups[i];
     var c = PU_COLORS[pu.kind];
+    if (drawLootSprite(pu, c)) continue;
     ctx.beginPath();
     ctx.arc(pu.x, pu.y, 13, 0, TAU);
     ctx.fillStyle = 'rgba(10,20,40,0.75)';

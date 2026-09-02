@@ -1,45 +1,22 @@
 /*
- * 星际远征流程：成长奖励 / 星门 / 拾荒 / 救援 / 机关躲避
+ * 星际远征流程：小游戏选择 / 迷宫 / 跳一跳 / BOSS 后模块奖励
  * （共享全局作用域，加载顺序：progression.js -> events.js -> render.js）
  */
 
-var EVENT_DEFS = {
-  salvage: { name: '太空拾荒', color: '#6cf2ff', reward: '武器模块' },
-  rescue: { name: '救援任务', color: '#7dffb0', reward: '防御补给' },
-  dodge: { name: '机关躲避', color: '#ff9e5c', reward: '稀有模块' }
+var MINI_GAME_DEFS = {
+  maze: { name: '星际迷宫', icon: '⌘', color: '#6cf2ff', desc: '穿过迷宫抵达能量核心' },
+  jump: { name: '星际跳一跳', icon: '◆', color: '#ffd25d', desc: '连续跳上平台，抵达终点' }
 };
 
 var runState = {};
-var routeGates = [];
-var eventItems = [];
-var eventHazards = [];
-var eventWalls = [];
 
 function resetRunFlow() {
-  runState = {
-    phase: 'combat',
-    gateTime: 0,
-    event: null,
-    pendingWave: 1,
-    rewardType: ''
-  };
-  routeGates.length = 0;
-  eventItems.length = 0;
-  eventHazards.length = 0;
-  eventWalls.length = 0;
+  runState = { phase: 'combat', choiceTime: 0, pendingWave: 1, rewardType: '', miniGame: null };
 }
 
-function setRunPhase(phase) {
-  runState.phase = phase;
-}
-
-function isCombatRunPhase() {
-  return runState.phase === 'combat' || runState.phase === 'boss';
-}
-
-function isAutoFireEnabled() {
-  return isCombatRunPhase();
-}
+function setRunPhase(phase) { runState.phase = phase; }
+function isCombatRunPhase() { return runState.phase === 'combat' || runState.phase === 'boss'; }
+function isAutoFireEnabled() { return isCombatRunPhase(); }
 
 function clearCombatObjects() {
   bullets.length = 0;
@@ -51,22 +28,8 @@ function clearCombatObjects() {
 function finishWaveFlow(wave) {
   runState.pendingWave = wave + 1;
   clearCombatObjects();
-  if (wave % 5 === 0) {
-    startModuleReward(true, 3);
-  } else if (wave % 2 === 0) {
-    startGateSelection();
-  } else {
-    startUpgradeReward();
-  }
-}
-
-function startUpgradeReward() {
-  setRunPhase('reward');
-  runState.rewardType = 'upgrade';
-  showRewardChoice('选择强化', '强化仅在本局远征中生效', getUpgradeChoices(3), function (id) {
-    applyUpgrade(id);
-    advanceRunWave();
-  });
+  if (wave % 30 === 0) startModuleReward(true, 3);
+  else startMiniGameChoice();
 }
 
 function startModuleReward(rare, count) {
@@ -78,206 +41,186 @@ function startModuleReward(rare, count) {
   });
 }
 
-function startGateSelection() {
-  setRunPhase('gate');
-  runState.gateTime = 12;
-  player.x = LW / 2;
-  player.y = LH - 150;
-  player.inv = Math.max(player.inv, 1);
-  routeGates = [
-    { kind: 'salvage', x: 100, y: 330, r: 58, t: 0 },
-    { kind: 'rescue', x: 270, y: 330, r: 58, t: 1.5 },
-    { kind: 'dodge', x: 440, y: 330, r: 58, t: 3 }
-  ];
-  showBanner('选择星门', '#eaf6ff', 1.6);
+function startMiniGameChoice() {
+  setRunPhase('mini-choice');
+  runState.choiceTime = 5;
+  var choices = shuffledCopy(Object.keys(MINI_GAME_DEFS).map(function (id) {
+    var def = MINI_GAME_DEFS[id];
+    return { id: id, icon: def.icon, name: def.name, desc: def.desc };
+  }));
+  runState.miniChoices = choices;
+  showMiniGameChoice(choices, startMiniGame);
 }
 
-function chooseGate(kind) {
-  routeGates.length = 0;
-  startRunEvent(kind);
+function skipMiniGameChoice() {
+  if (runState.phase !== 'mini-choice') return;
+  rewardCallback = null;
+  hideRewardChoice();
+  showBanner('跳过小游戏', '#9fc4ef', 1.1);
+  advanceRunWave();
 }
 
-function startRunEvent(kind) {
-  var duration = kind === 'dodge' ? 18 : (kind === 'salvage' ? 22 : 24);
-  setRunPhase('event');
+function startMiniGame(kind) {
+  var def = MINI_GAME_DEFS[kind];
+  if (!def) return;
+  setRunPhase('minigame');
   clearCombatObjects();
-  eventItems.length = 0;
-  eventHazards.length = 0;
-  eventWalls.length = 0;
-  player.x = LW / 2;
-  player.y = LH - 150;
   player.inv = 1;
-  runState.event = {
-    kind: kind,
-    time: duration,
-    maxTime: duration,
-    spawnT: 0.2,
-    collected: 0,
-    rescued: 0,
-    lost: 0,
-    penalties: 0,
-    target: kind === 'salvage' ? (G.diffMode === 'easy' ? 12 : 18) : (G.diffMode === 'easy' ? 4 : 6)
+  player.x = LW / 2;
+  player.y = LH - 140;
+  runState.miniGame = { kind: kind, time: kind === 'maze' ? 20 : 24, maxTime: kind === 'maze' ? 20 : 24, score: 0 };
+  if (kind === 'maze') setupMazeGame(runState.miniGame);
+  else setupJumpGame(runState.miniGame);
+  hideRewardChoice();
+  showBanner(def.name, def.color, 1.6);
+}
+
+function setupMazeGame(game) {
+  var cols = 13, rows = 17;
+  var grid = [];
+  for (var y = 0; y < rows; y++) grid.push(new Array(cols).fill(1));
+  var stack = [{ x: 1, y: 1 }];
+  grid[1][1] = 0;
+  while (stack.length) {
+    var cell = stack[stack.length - 1];
+    var dirs = shuffledCopy([{ x: 2, y: 0 }, { x: -2, y: 0 }, { x: 0, y: 2 }, { x: 0, y: -2 }]);
+    var carved = false;
+    for (var i = 0; i < dirs.length; i++) {
+      var nx = cell.x + dirs[i].x, ny = cell.y + dirs[i].y;
+      if (nx <= 0 || nx >= cols - 1 || ny <= 0 || ny >= rows - 1 || grid[ny][nx] === 0) continue;
+      grid[cell.y + dirs[i].y / 2][cell.x + dirs[i].x / 2] = 0;
+      grid[ny][nx] = 0;
+      stack.push({ x: nx, y: ny });
+      carved = true;
+      break;
+    }
+    if (!carved) stack.pop();
+  }
+  game.maze = { grid: grid, cols: cols, rows: rows, cell: 34, ox: (LW - cols * 34) / 2, oy: 150 };
+  game.maze.start = { x: 1, y: 1 };
+  game.maze.goal = { x: cols - 2, y: rows - 2 };
+  player.x = game.maze.ox + 1.5 * game.maze.cell;
+  player.y = game.maze.oy + 1.5 * game.maze.cell;
+}
+
+function setupJumpGame(game) {
+  var meteors = [{ x: 270, y: 850, r: 72 }];
+  for (var i = 1; i < 8; i++) {
+    var previous = meteors[i - 1];
+    meteors.push({ x: clamp(previous.x + rand(-145, 145), 72, LW - 72), y: 850 - i * 104, r: 48 - Math.min(8, i) });
+  }
+  game.jump = {
+    gravity: 1150,
+    vy: 0,
+    vx: 0,
+    meteorIndex: 0,
+    meteors: meteors,
+    landed: true,
+    charging: false,
+    charge: 0,
+    maxCharge: 1.1,
+    jumpDir: 0
   };
-  showBanner(EVENT_DEFS[kind].name, EVENT_DEFS[kind].color, 1.8);
+  player.x = meteors[0].x;
+  player.y = meteors[0].y - player.r;
+}
+
+function mazeOpen(game, x, y) {
+  var m = game.maze;
+  var gx = Math.floor((x - m.ox) / m.cell), gy = Math.floor((y - m.oy) / m.cell);
+  return gx >= 0 && gx < m.cols && gy >= 0 && gy < m.rows && m.grid[gy][gx] === 0;
 }
 
 function updateRunFlow(dt) {
-  if (runState.phase === 'gate') updateGateSelection(dt);
-  else if (runState.phase === 'event') updateRunEvent(dt);
+  if (runState.phase === 'mini-choice') {
+    runState.choiceTime -= dt;
+    if (ui.choiceTimer) ui.choiceTimer.textContent = Math.max(0, Math.ceil(runState.choiceTime)) + 's';
+    if (runState.choiceTime <= 0) skipMiniGameChoice();
+  } else if (runState.phase === 'minigame') updateMiniGame(dt);
 }
 
-function updateGateSelection(dt) {
-  runState.gateTime -= dt;
-  var nearest = routeGates[0];
-  for (var i = 0; i < routeGates.length; i++) {
-    var gate = routeGates[i];
-    gate.t += dt;
-    if (Math.abs(player.x - gate.x) < Math.abs(player.x - nearest.x)) nearest = gate;
-    if (circleHit(player.x, player.y, player.r + 4, gate.x, gate.y, gate.r)) {
-      chooseGate(gate.kind);
+function updateMiniGame(dt) {
+  var game = runState.miniGame;
+  if (!game) return;
+  game.time -= dt;
+  if (game.kind === 'maze') updateMazeGame(game, dt);
+  else updateJumpGame(game, dt);
+  if (runState.phase === 'minigame' && game.time <= 0) finishMiniGame(false);
+}
+
+function updateMazeGame(game, dt) {
+  var speed = 240, dx = input.moveX * speed * dt, dy = input.moveY * speed * dt, r = player.r - 3;
+  if (input.touchActive) {
+    var targetX = input.touchX, targetY = input.touchY;
+    var td = Math.hypot(targetX - player.x, targetY - player.y);
+    if (td > 4) {
+      dx = (targetX - player.x) / td * Math.min(speed * dt, td);
+      dy = (targetY - player.y) / td * Math.min(speed * dt, td);
+    }
+  }
+  if (mazeOpen(game, player.x + dx + (dx < 0 ? -r : r), player.y) && mazeOpen(game, player.x + dx, player.y)) player.x += dx;
+  if (mazeOpen(game, player.x, player.y + dy + (dy < 0 ? -r : r)) && mazeOpen(game, player.x, player.y + dy)) player.y += dy;
+  var m = game.maze, gx = m.ox + (m.goal.x + 0.5) * m.cell, gy = m.oy + (m.goal.y + 0.5) * m.cell;
+  if (Math.hypot(player.x - gx, player.y - gy) < 18) finishMiniGame(true);
+}
+
+function updateJumpGame(game, dt) {
+  var j = game.jump;
+  var jumpMove = input.moveX;
+  if (input.touchActive) jumpMove = Math.abs(input.touchX - player.x) > 12 ? (input.touchX > player.x ? 1 : -1) : 0;
+  if (j.landed) {
+    if (input.fireStrength > 0) {
+      j.charging = true;
+      j.charge = Math.min(j.maxCharge, j.charge + dt * (0.65 + input.fireStrength * 0.35));
+      if (jumpMove) j.jumpDir = jumpMove > 0 ? 1 : -1;
       return;
     }
+    if (j.charging) {
+      var power = j.charge / j.maxCharge;
+      var next = j.meteors[Math.min(j.meteorIndex + 1, j.meteors.length - 1)];
+      var dir = j.jumpDir || (next.x >= player.x ? 1 : -1);
+      j.vy = -(360 + power * 460);
+      j.vx = dir * (120 + power * 360);
+      j.landed = false;
+      j.charging = false;
+      j.charge = 0;
+      j.jumpDir = 0;
+    }
+    return;
   }
-  if (runState.gateTime <= 0 && nearest) chooseGate(nearest.kind);
-}
-
-function spawnSalvageObject() {
-  if (Math.random() < 0.24) {
-    eventHazards.push({ kind: 'mine', x: rand(35, LW - 35), y: -30, r: 16, vy: rand(135, 190), t: 0 });
-  } else {
-    eventItems.push({ kind: 'part', x: rand(28, LW - 28), y: -20, r: 10, vy: rand(115, 180), t: Math.random() * TAU });
-  }
-}
-
-function spawnRescueObject() {
-  eventItems.push({ kind: 'pod', x: rand(38, LW - 38), y: -30, r: 15, vy: rand(85, 125), t: Math.random() * TAU });
-  if (Math.random() < 0.45) {
-    eventHazards.push({ kind: 'hunter', x: rand(35, LW - 35), y: -40, r: 16, vy: rand(150, 210), t: 0 });
-  }
-}
-
-function spawnDodgeWall() {
-  var gapW = G.diffMode === 'easy' ? 190 : 132;
-  eventWalls.push({
-    y: -24,
-    h: 26,
-    gapX: rand(gapW / 2 + 24, LW - gapW / 2 - 24),
-    gapW: gapW,
-    vy: (G.diffMode === 'easy' ? 175 : 245) + G.wave * 2,
-    hit: false
-  });
-}
-
-function updateRunEvent(dt) {
-  var ev = runState.event;
-  if (!ev) return;
-  ev.time -= dt;
-  ev.spawnT -= dt;
-  if (ev.spawnT <= 0) {
-    if (ev.kind === 'salvage') { spawnSalvageObject(); ev.spawnT = 0.36; }
-    else if (ev.kind === 'rescue') { spawnRescueObject(); ev.spawnT = 1.45; }
-    else { spawnDodgeWall(); ev.spawnT = 1.25; }
-  }
-  updateEventItems(dt, ev);
-  updateEventHazards(dt, ev);
-  updateEventWalls(dt, ev);
-  if (ev.time <= 0) finishRunEvent();
-}
-
-function updateEventItems(dt, ev) {
-  var magnet = pickupMagnetRadius();
-  for (var i = eventItems.length - 1; i >= 0; i--) {
-    var item = eventItems[i];
-    item.t += dt;
-    item.y += item.vy * dt;
-    if (item.kind === 'part' && magnet > 0) {
-      var dx = player.x - item.x, dy = player.y - item.y;
-      var dist = Math.hypot(dx, dy);
-      if (dist < magnet && dist > 1) {
-        item.x += dx / dist * 260 * dt;
-        item.y += dy / dist * 260 * dt;
+  player.x = clamp(player.x + (j.vx + jumpMove * 320) * dt, 25, LW - 25);
+  j.vx *= Math.pow(0.18, dt);
+  var previousBottom = player.y + player.r;
+  j.vy += j.gravity * dt;
+  player.y += j.vy * dt;
+  for (var i = j.meteorIndex; i < j.meteors.length; i++) {
+    var meteor = j.meteors[i];
+    if (j.vy >= 0 && previousBottom <= meteor.y && player.y + player.r >= meteor.y && Math.abs(player.x - meteor.x) < meteor.r) {
+      player.y = meteor.y - player.r;
+      j.vy = 0;
+      j.vx = 0;
+      j.landed = true;
+      if (i > j.meteorIndex) {
+        j.meteorIndex = i;
+        G.score += 100;
+        addFloat('+100', player.x, player.y - 28, '#ffd25d');
+        sfx.powerup();
       }
-    }
-    if (circleHit(player.x, player.y, player.r + 5, item.x, item.y, item.r)) {
-      eventItems.splice(i, 1);
-      if (item.kind === 'part') {
-        ev.collected++;
-        G.score += 40;
-        addFloat('+40', player.x, player.y - 30, '#6cf2ff');
-      } else {
-        ev.rescued++;
-        G.score += 150;
-        addFloat('救援 +1', player.x, player.y - 30, '#7dffb0');
-      }
-      sfx.powerup();
-      continue;
-    }
-    if (item.y > LH + 35) {
-      if (item.kind === 'pod') ev.lost++;
-      eventItems.splice(i, 1);
+      if (i === j.meteors.length - 1) finishMiniGame(true);
+      break;
     }
   }
+  if (player.y > LH + 60) finishMiniGame(false);
 }
 
-function eventPenalty(x, y) {
-  var ev = runState.event;
-  if (player.inv > 0 || !ev) return;
-  ev.penalties++;
-  player.inv = 0.9;
-  G.score = Math.max(0, G.score - 50);
-  G.shake = Math.max(G.shake, 8);
-  sparks(x, y, 12, '#ff8a5c');
-  addFloat('-50', player.x, player.y - 28, '#ff8a5c');
-  sfx.hit();
-}
-
-function updateEventHazards(dt) {
-  for (var i = eventHazards.length - 1; i >= 0; i--) {
-    var hazard = eventHazards[i];
-    hazard.t += dt;
-    hazard.y += hazard.vy * dt;
-    if (hazard.kind === 'hunter') hazard.x += Math.sin(hazard.t * 3) * 55 * dt;
-    if (circleHit(player.x, player.y, player.r - 3, hazard.x, hazard.y, hazard.r)) {
-      eventPenalty(hazard.x, hazard.y);
-      eventHazards.splice(i, 1);
-      continue;
-    }
-    if (hazard.y > LH + 45) eventHazards.splice(i, 1);
-  }
-}
-
-function updateEventWalls(dt) {
-  for (var i = eventWalls.length - 1; i >= 0; i--) {
-    var wall = eventWalls[i];
-    wall.y += wall.vy * dt;
-    if (!wall.hit && Math.abs(player.y - wall.y) < wall.h / 2 + player.r - 4) {
-      var safeLeft = wall.gapX - wall.gapW / 2;
-      var safeRight = wall.gapX + wall.gapW / 2;
-      if (player.x - player.r < safeLeft || player.x + player.r > safeRight) {
-        wall.hit = true;
-        eventPenalty(player.x, player.y);
-      }
-    }
-    if (wall.y > LH + 50) eventWalls.splice(i, 1);
-  }
-}
-
-function finishRunEvent() {
-  var ev = runState.event;
-  var success;
-  if (ev.kind === 'salvage') success = ev.collected >= ev.target;
-  else if (ev.kind === 'rescue') success = ev.rescued >= ev.target;
-  else success = ev.penalties <= (G.diffMode === 'easy' ? 6 : 3);
-  eventItems.length = 0;
-  eventHazards.length = 0;
-  eventWalls.length = 0;
-  runState.event = null;
-  showBanner(success ? '事件完成' : '事件结束 · 奖励减少', success ? '#7dffb0' : '#ffd25d', 1.8);
-  if (ev.kind === 'rescue' && success) {
-    player.hp = Math.min(player.maxHp, player.hp + 1);
-    player.shield = true;
-  }
-  startModuleReward(ev.kind === 'dodge' && success, success ? 3 : 2);
+function finishMiniGame(success) {
+  if (runState.phase !== 'minigame') return;
+  var game = runState.miniGame;
+  runState.miniGame = null;
+  showBanner(success ? '小游戏完成' : '小游戏结束', success ? '#7dffb0' : '#ffd25d', 1.4);
+  if (success) G.score += game.kind === 'maze' ? 500 : 300;
+  advanceRunWave();
+  if (success) spawnPowerup(LW / 2, LH - 190, Math.random() < 0.5 ? 'P' : 'H');
 }
 
 function advanceRunWave() {
@@ -290,16 +233,12 @@ function advanceRunWave() {
 }
 
 function runHudData() {
-  if (runState.phase === 'gate') {
-    return { title: '选择星门', progress: Math.max(0, Math.ceil(runState.gateTime)) + 's' };
-  }
-  if (runState.phase !== 'event' || !runState.event) return null;
-  var ev = runState.event;
-  var value;
-  if (ev.kind === 'salvage') value = ev.collected + '/' + ev.target;
-  else if (ev.kind === 'rescue') value = ev.rescued + '/' + ev.target + ' · 漏失 ' + ev.lost;
-  else value = '碰撞 ' + ev.penalties;
-  return { title: EVENT_DEFS[ev.kind].name, progress: value + ' · ' + Math.max(0, Math.ceil(ev.time)) + 's' };
+  if (runState.phase === 'mini-choice') return { title: '选择小游戏', progress: Math.max(0, Math.ceil(runState.choiceTime)) + 's' };
+  if (runState.phase !== 'minigame' || !runState.miniGame) return null;
+  var game = runState.miniGame;
+  var value = game.kind === 'maze' ? '找到能量核心' : '陨石 ' + (game.jump.meteorIndex + 1) + '/' + game.jump.meteors.length
+    + (game.jump.charging ? ' · 蓄力 ' + Math.round(game.jump.charge / game.jump.maxCharge * 100) + '%' : '');
+  return { title: MINI_GAME_DEFS[game.kind].name, progress: value + ' · ' + Math.max(0, Math.ceil(game.time)) + 's' };
 }
 
 resetRunFlow();

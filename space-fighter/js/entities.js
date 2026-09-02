@@ -419,7 +419,8 @@ function spawnBoss(level) {
   boss = {
     level: level, x: LW / 2, y: -170, r: 62,
     maxHp: 160 + (level - 1) * 90, hp: 0,
-    t: 0, fireT: 1.2, spiral: 0, phase: 0, drift: 1, alt: false, entered: false
+    t: 0, fireT: 1.2, spiral: 0, phase: 0, drift: 1, alt: false, entered: false,
+    moveMode: 0, moveT: 0, dashT: 0
   };
   boss.hp = boss.maxHp;
   ui.bossBar.classList.remove('hidden');
@@ -437,38 +438,63 @@ function updateBoss(dt) {
   }
   var frac = b.hp / b.maxHp;
   b.phase = frac > 0.66 ? 0 : (frac > 0.33 ? 1 : 2);
-  var speed = b.phase === 2 ? 130 : 80;
-  b.x += b.drift * speed * dt;
+  b.moveT -= dt;
+  if (b.moveT <= 0) {
+    b.moveMode = (b.moveMode + 1) % 4;
+    b.moveT = b.phase === 2 ? 2.2 : 3.4;
+    if (b.moveMode === 3) { b.dashT = 0.55; b.drift = b.x < LW / 2 ? 1 : -1; }
+  }
+  var speed = b.phase === 2 ? 150 : 95;
+  if (b.moveMode === 0) {
+    b.x += b.drift * speed * dt;
+    b.y = 150 + Math.sin(b.t * 1.6) * 20;
+  } else if (b.moveMode === 1) {
+    b.x = LW / 2 + Math.sin(b.t * 1.7) * (LW * 0.36);
+    b.y = 150 + Math.sin(b.t * 3.1) * 28;
+  } else if (b.moveMode === 2) {
+    b.x += (player.x - b.x) * Math.min(1, dt * 0.9);
+    b.y = 148 + Math.sin(b.t * 2.4) * 36;
+  } else {
+    b.x += b.drift * (b.dashT > 0 ? 360 : 60) * dt;
+    b.dashT -= dt;
+    b.y = 150 + Math.sin(b.t * 4) * 18;
+  }
   if (b.x > LW - 95) { b.x = LW - 95; b.drift = -1; }
   if (b.x < 95) { b.x = 95; b.drift = 1; }
-  b.y = 150 + Math.sin(b.t * 1.6) * 20;
 
   b.fireT -= dt;
   if (b.fireT > 0) return;
-  if (b.phase === 0) {
-    aimedFan(b.x, b.y + 46, 5, 30, Math.min(260, 200 + 25 * b.level));
-    b.fireT = 1.5;
-  } else if (b.phase === 1) {
+  var pattern = (Math.floor(b.t * (b.phase === 2 ? 1.35 : 0.75)) + b.phase) % 5;
+  if (pattern === 0) {
+    aimedFan(b.x, b.y + 46, 5 + b.phase, 30 + b.phase * 8, Math.min(300, 210 + 25 * b.level));
+    b.fireT = b.phase === 2 ? 1.05 : 1.4;
+  } else if (pattern === 1) {
     b.spiral += 0.44;
-    var bs = 175 * DIFF.bulletSpeedMul;
-    for (var k = 0; k < 2; k++) {
-      var a = b.spiral + k * Math.PI;
+    var bs = (175 + b.phase * 25) * DIFF.bulletSpeedMul;
+    for (var k = 0; k < 3; k++) {
+      var a = b.spiral + k * Math.PI * 2 / 3;
       ebullets.push({ x: b.x, y: b.y + 16, vx: Math.cos(a) * bs, vy: Math.sin(a) * bs, r: 5 });
     }
-    b.fireT = 0.11;
-  } else {
-    b.alt = !b.alt;
-    if (b.alt) {
-      var gap = rand(80, LW - 80);
-      for (var gx = 36; gx < LW; gx += 48) {
-        if (Math.abs(gx - gap) < 92) continue;
-        ebullets.push({ x: gx, y: b.y + 40, vx: 0, vy: 155 * DIFF.bulletSpeedMul, r: 5 });
-      }
-      b.fireT = 1.0;
-    } else {
-      aimedFan(b.x, b.y + 46, 7, 44, 215);
-      b.fireT = 1.3;
+    b.fireT = 0.16;
+  } else if (pattern === 2) {
+    var gap = rand(70, LW - 70);
+    for (var gx = 24; gx < LW; gx += 42) {
+      if (Math.abs(gx - gap) < 78) continue;
+      ebullets.push({ x: gx, y: b.y + 40, vx: Math.sin(gx) * 18, vy: (155 + b.phase * 35) * DIFF.bulletSpeedMul, r: 5 });
     }
+    b.fireT = 1.0;
+  } else if (pattern === 3) {
+    aimedFan(b.x, b.y + 46, 3, 16, 285);
+    aimedFan(b.x, b.y + 46, 3, 64, 185);
+    b.fireT = 1.25;
+  } else {
+    for (var ring = 0; ring < 12; ring++) {
+      var ra = ring * TAU / 12 + b.spiral;
+      var rspd = (120 + (ring % 2) * 55) * DIFF.bulletSpeedMul;
+      ebullets.push({ x: b.x, y: b.y, vx: Math.cos(ra) * rspd, vy: Math.sin(ra) * rspd, r: 4 });
+    }
+    b.spiral += 0.35;
+    b.fireT = b.phase === 2 ? 1.1 : 1.8;
   }
   sfx.enemyShoot();
 }
@@ -512,11 +538,11 @@ function startWave(n) {
   director.bossPending = false;
   director.bossActive = false;
   if (n > 1 && player.alive) player.hp = player.maxHp; // 每过一关，生命值重置
-  if (n % 5 === 0) {
+  if (n % 30 === 0) {
     setRunPhase('boss');
     director.bossPending = true;
     director.bossWarnT = 2.2;
-    director.bossLevel = n / 5;
+    director.bossLevel = n / 30;
     showBanner('⚠ 警告：BOSS 来袭 ⚠', '#ff8a9a', 2.2);
     sfx.alarm();
   } else {
@@ -592,7 +618,7 @@ function updatePlayer(dt) {
 
   if (p.inv > 0) p.inv -= dt;
   p.cool -= dt;
-  // 战斗阶段自动发射；星门与休闲事件阶段仅保留移动
+  // 仅战斗阶段自动发射；小游戏阶段由独立规则接管移动
   if (isAutoFireEnabled() && p.cool <= 0) {
     shoot();
     p.cool = weaponCooldown(WEAPON_STAGES[p.wstage - 1].cool[p.wlevel - 1]);

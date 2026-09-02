@@ -15,8 +15,15 @@ var context = {
   weaponName: function (id) { return 'weapon-' + id; },
   sfx: { levelup: function () {}, powerup: function () {}, evolve: function () {} },
   showBanner: function () {},
+  showMiniGameChoice: function () {},
   explosion: function () {},
   bullets: [], ebullets: [], enemies: [], powerups: [],
+  input: { moveX: 0, moveY: 0, touchActive: false, touchX: 0, touchY: 0, fireStrength: 0 },
+  LW: 540,
+  LH: 960,
+  clamp: function (v, a, b) { return Math.max(a, Math.min(b, v)); },
+  rand: function (a, b) { return (a + b) / 2; },
+  hideRewardChoice: function () {},
   routeCalls: []
 };
 
@@ -41,13 +48,26 @@ assert.strictEqual(fusionResult.fusion.weapon, 2, '脉冲核心和扩散镜片�
 assert.strictEqual(context.player.wstage, 2, '合成后应切换武器类型');
 assert.strictEqual(context.player.wlevel, 3, '合成后应保留武器等级');
 
+context.startMiniGameChoice();
+assert.strictEqual(context.runState.phase, 'mini-choice', '普通波次应进入小游戏选择');
+assert.strictEqual(context.runState.choiceTime, 5, '小游戏选择倒计时应为 5 秒');
+assert.deepStrictEqual(Array.from(context.runState.miniChoices.map(function (item) { return item.id; })).sort(), ['jump', 'maze'], '小游戏选项应只包含两种');
+
+context.startMiniGame('jump');
+context.input.fireStrength = 1;
+context.updateRunFlow(0.5);
+assert.ok(context.runState.miniGame.jump.charge > 0, '按住跳跃键应开始蓄力');
+context.input.fireStrength = 0;
+context.updateRunFlow(0.016);
+assert.strictEqual(context.runState.miniGame.jump.landed, false, '松开跳跃键后应离开陨石');
+assert.ok(context.runState.miniGame.jump.vy < 0, '松开跳跃键后应向上跳跃');
+
 context.clearCombatObjects = function () {};
-context.startUpgradeReward = function () { context.routeCalls.push('upgrade'); };
-context.startGateSelection = function () { context.routeCalls.push('gate'); };
+context.startMiniGameChoice = function () { context.routeCalls.push('mini'); };
 context.startModuleReward = function (rare, count) { context.routeCalls.push(rare + ':' + count); };
 context.finishWaveFlow(1);
 context.finishWaveFlow(2);
-context.finishWaveFlow(5);
-assert.deepStrictEqual(Array.from(context.routeCalls), ['upgrade', 'gate', 'true:3'], '五波循环路由不正确');
+context.finishWaveFlow(30);
+assert.deepStrictEqual(Array.from(context.routeCalls), ['mini', 'mini', 'true:3'], '波次小游戏/BOSS 路由不正确');
 
 console.log('gameplay tests passed');
