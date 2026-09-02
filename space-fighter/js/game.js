@@ -26,6 +26,7 @@ var ui = {
   btnHome: $('btn-home'),
   btnPause: $('btn-pause'), pauseInfo: $('pause-info'),
   btnPauseRestart: $('btn-pause-restart'), btnPauseHome: $('btn-pause-home'),
+  btnMiniMaze: $('btn-mini-maze'), btnMiniJump: $('btn-mini-jump'),
   btnModeEasy: $('btn-mode-easy'), btnModeNormal: $('btn-mode-normal'),
   btnInfinite: $('btn-infinite')
 };
@@ -92,7 +93,7 @@ function toggleInfiniteLives() {
 
 // ---------------- 菜单焦点导航（手柄 / 键盘） ----------------
 var menus = {
-  start: { items: [ui.btnModeEasy, ui.btnModeNormal, ui.btnInfinite, ui.btnStart], defIdx: 3, idx: 3 },
+  start: { items: [ui.btnModeEasy, ui.btnModeNormal, ui.btnInfinite, ui.btnStart, ui.btnMiniMaze, ui.btnMiniJump], defIdx: 3, idx: 3 },
   over: { items: [ui.btnRestart, ui.btnHome], defIdx: 0, idx: 0 }
 };
 var activeMenu = null;
@@ -278,6 +279,37 @@ function startGame() {
   refreshHud();
 }
 
+function startStandaloneMiniGame(kind) {
+  enterFullscreen();
+  sfx.select();
+  sfx.startMusic('normal');
+  G.mode = 'playing';
+  DIFF = DIFF_PRESETS[G.diffMode];
+  player.maxHp = DIFF.maxHp;
+  G.score = 0; G.wave = 0; G.shake = 0; G.flash = 0; G.newRecord = false; G.overDelay = 0;
+  bullets.length = 0; ebullets.length = 0; enemies.length = 0;
+  powerups.length = 0; particles.length = 0; floaters.length = 0;
+  boss = null;
+  ui.bossBar.classList.add('hidden');
+  banner.t = 0;
+  player.x = LW / 2; player.y = LH - 140;
+  player.hp = player.maxHp; player.shield = false; player.wstage = 1; player.wlevel = 1;
+  player.bombs = 2; player.cool = 0; player.inv = 1; player.alive = true; player.speed = 350;
+  resetProgression();
+  resetRunFlow();
+  resetDirector();
+  runState.standalone = true;
+  startMiniGame(kind);
+  ui.start.classList.add('hidden');
+  ui.over.classList.add('hidden');
+  ui.pause.classList.add('hidden');
+  hideMenu();
+  ui.hud.classList.remove('hidden');
+  if (isTouch) ui.btnBomb.classList.remove('hidden');
+  ui.btnPause.classList.remove('hidden');
+  refreshHud();
+}
+
 function pauseGame() {
   if (G.mode !== 'playing' || runState.phase === 'reward') return;
   G.mode = 'paused';
@@ -325,6 +357,10 @@ function backToMenu() {
   sfx.stopMusic();
   G.mode = 'start';
   exitFullscreen();
+  ui.hud.classList.add('hidden');
+  ui.bossBar.classList.add('hidden');
+  ui.btnBomb.classList.add('hidden');
+  ui.btnPause.classList.add('hidden');
   ui.over.classList.add('hidden');
   ui.pause.classList.add('hidden');
   ui.eventPanel.classList.add('hidden');
@@ -468,6 +504,8 @@ ui.btnPause.addEventListener('pointerdown', function (e) {
 });
 ui.btnPauseRestart.addEventListener('click', startGame);
 ui.btnPauseHome.addEventListener('click', backToMenu);
+ui.btnMiniMaze.addEventListener('click', function () { startStandaloneMiniGame('maze'); });
+ui.btnMiniJump.addEventListener('click', function () { startStandaloneMiniGame('jump'); });
 
 canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); });
 

@@ -64,10 +64,13 @@ assert.ok(context.runState.miniGame.jump.vy < 0, '松开跳跃键后应向上跳
 
 context.clearCombatObjects = function () {};
 context.startMiniGameChoice = function () { context.routeCalls.push('mini'); };
+context.advanceRunWave = function () { context.routeCalls.push('advance'); };
 context.startModuleReward = function (rare, count) { context.routeCalls.push(rare + ':' + count); };
+context.runState.miniGameWave = 1;
+context.runState.miniGameUsed = false;
 context.finishWaveFlow(1);
 context.finishWaveFlow(2);
 context.finishWaveFlow(30);
-assert.deepStrictEqual(Array.from(context.routeCalls), ['mini', 'mini', 'true:3'], '波次小游戏/BOSS 路由不正确');
+assert.deepStrictEqual(Array.from(context.routeCalls), ['mini', 'advance', 'true:3'], '30 波周期小游戏/BOSS 路由不正确');
 
 console.log('gameplay tests passed');

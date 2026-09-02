@@ -11,7 +11,11 @@ var MINI_GAME_DEFS = {
 var runState = {};
 
 function resetRunFlow() {
-  runState = { phase: 'combat', choiceTime: 0, pendingWave: 1, rewardType: '', miniGame: null };
+  runState = {
+    phase: 'combat', choiceTime: 0, pendingWave: 1, rewardType: '', miniGame: null,
+    cycleStart: 1, miniGameWave: 1 + Math.floor(Math.random() * 29), miniGameUsed: false,
+    standalone: false
+  };
 }
 
 function setRunPhase(phase) { runState.phase = phase; }
@@ -29,7 +33,10 @@ function finishWaveFlow(wave) {
   runState.pendingWave = wave + 1;
   clearCombatObjects();
   if (wave % 30 === 0) startModuleReward(true, 3);
-  else startMiniGameChoice();
+  else if (!runState.miniGameUsed && wave === runState.miniGameWave) {
+    runState.miniGameUsed = true;
+    startMiniGameChoice();
+  } else advanceRunWave();
 }
 
 function startModuleReward(rare, count) {
@@ -73,6 +80,12 @@ function startMiniGame(kind) {
   else setupJumpGame(runState.miniGame);
   hideRewardChoice();
   showBanner(def.name, def.color, 1.6);
+}
+
+function prepareMiniGameCycle(cycleStart) {
+  runState.cycleStart = cycleStart;
+  runState.miniGameWave = cycleStart + Math.floor(Math.random() * 29);
+  runState.miniGameUsed = false;
 }
 
 function setupMazeGame(game) {
@@ -219,6 +232,11 @@ function finishMiniGame(success) {
   runState.miniGame = null;
   showBanner(success ? '小游戏完成' : '小游戏结束', success ? '#7dffb0' : '#ffd25d', 1.4);
   if (success) G.score += game.kind === 'maze' ? 500 : 300;
+  if (runState.standalone) {
+    clearCombatObjects();
+    backToMenu();
+    return;
+  }
   advanceRunWave();
   if (success) spawnPowerup(LW / 2, LH - 190, Math.random() < 0.5 ? 'P' : 'H');
 }
@@ -229,6 +247,7 @@ function advanceRunWave() {
   player.x = LW / 2;
   player.y = LH - 140;
   player.inv = Math.max(player.inv, 1.2);
+  if (runState.pendingWave % 30 === 1) prepareMiniGameCycle(runState.pendingWave);
   startWave(runState.pendingWave);
 }
 

@@ -256,6 +256,41 @@ h2 {
 
 .btn:hover { transform: scale(1.05); box-shadow: 0 0 28px rgba(80, 170, 255, 0.85); }
 
+#mini-game-launches {
+  display: flex;
+  gap: 10px;
+  pointer-events: auto;
+}
+
+.mini-launch {
+  min-width: 142px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 14px;
+  color: #dceeff;
+  background: rgba(12, 28, 56, 0.82);
+  border: 1px solid rgba(100, 175, 255, 0.45);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease, transform 0.08s ease;
+}
+
+.mini-launch:hover,
+.mini-launch.focused {
+  border-color: #9fe8ff;
+  box-shadow: 0 0 0 3px rgba(110, 200, 255, 0.24), 0 0 18px rgba(80, 175, 255, 0.4);
+  transform: translateY(-1px);
+}
+
+.mini-launch-icon {
+  color: #ffd25d;
+  font-size: 24px;
+  line-height: 1;
+}
+
 /* ---------- 模式选择 ---------- */
 #mode-select {
   pointer-events: auto;
@@ -437,6 +472,15 @@ h2 {
 }
 
 @media (max-width: 640px) {
+  #mini-game-launches {
+    width: min(100%, 360px);
+  }
+
+  .mini-launch {
+    min-width: 0;
+    flex: 1;
+  }
+
   #hud-bottom {
     right: 100px;
     gap: 6px;
