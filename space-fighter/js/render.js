@@ -4,15 +4,16 @@
  */
 
 var spriteSheet = new Image();
-spriteSheet.src = 'asset_2olOMyCNYNfeJq2s.png';
+spriteSheet.src = encodeURI('武器怪兽素材.png');
 
 var lootSheet = new Image();
 lootSheet.src = encodeURI('掉落物素材.png');
 var LOOT_SPRITES = {
-  // 素材图为 5 列 × 3 行，分别取心形、蓝色武器和蓝色护盾图标。
-  H: { x: 18, y: 16, w: 270, h: 270 },
-  P: { x: 306, y: 300, w: 305, h: 330 },
-  S: { x: 1220, y: 680, w: 300, h: 310 }
+  // 仅使用素材图最左列，从上到下依次为红心、武器、护盾和炸弹。
+  H: { x: 125, y: 15, w: 250, h: 250 },
+  P: { x: 125, y: 255, w: 250, h: 250 },
+  S: { x: 120, y: 505, w: 250, h: 250 },
+  B: { x: 120, y: 760, w: 250, h: 264 }
 };
 
 var SPRITES = {
