@@ -6,11 +6,12 @@
 <meta name="theme-color" content="#04060f">
 <title>太空战机 · Space Fighter</title>
 <link rel="icon" href="data:,">
-<link rel="stylesheet" href="css/style.css?v=2.8">
+<link rel="stylesheet" href="css/style.css?v=2.9.1">
 </head>
 <body>
 <div id="stage">
   <canvas id="game"></canvas>
+  <div class="cockpit-frame" aria-hidden="true"></div>
 
   <!-- 顶部 / 底部 HUD -->
   <div id="hud" class="hidden">
@@ -27,6 +28,10 @@
         <span class="hud-label">最高分</span>
         <span id="hiscore">0</span>
       </div>
+    </div>
+    <div id="arcade-panel">
+      <div><span class="hud-label">CHAIN / 连续击破</span><strong id="combo">0 连击 · ×1</strong><div class="meter"><i id="combo-fill"></i></div></div>
+      <div><span class="hud-label">OVERDRIVE / 击破 · 擦弹</span><strong id="energy-label">超载充能 0%</strong><div class="meter"><i id="energy-fill"></i></div></div>
     </div>
     <div id="hud-bottom">
       <div class="hud-group">
@@ -59,27 +64,33 @@
 
   <!-- 开始界面 -->
   <div id="screen-start" class="screen">
-    <h1>太空战机</h1>
-    <p class="subtitle">SPACE&nbsp;FIGHTER</p>
-    <div id="pad-status">🎮 未检测到手柄 · 可用键盘 / 触屏游玩</div>
-    <div class="controls-help">
-      <div class="ctl"><span class="key">左摇杆 / D-pad</span><span>移动</span></div>
-      <div class="ctl"><span class="key">自动射击</span><span>无需按键</span></div>
-      <div class="ctl"><span class="key">◯ / L1</span><span>炸弹</span></div>
-      <div class="ctl"><span class="key">OPTIONS</span><span>暂停</span></div>
-      <div class="ctl"><span class="key">WASD / 方向键 移动 · K / L1 炸弹</span><span>键盘操作</span></div>
+    <div class="hangar-art" aria-hidden="true"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="hero-ship"></div><span class="ship-caption">SF–09 / INTERCEPTOR</span></div>
+    <div class="start-content">
+      <p class="eyebrow"><span></span> 星际行动局 / ARCADE EDITION 02.9</p>
+      <h1>太空<span>战机</span></h1>
+      <p class="subtitle">SPACE FIGHTER</p>
+      <p class="start-tagline">穿越弹幕，让每一次击破点燃下一次爆发。</p>
+      <div class="feature-strip"><span><b>01</b> 连击倍增</span><span><b>02</b> 擦弹充能</span><span><b>03</b> 超载爆发</span></div>
+      <div id="pad-status">🎮 未检测到手柄 · 可用键盘 / 触屏游玩</div>
+      <div class="controls-help">
+        <div class="ctl"><span class="key">WASD / ↑↓←→ / 左摇杆</span><span>移动 · 自动射击</span></div>
+        <div class="ctl"><span class="key">K / ◯ / L1</span><span>炸弹</span><span class="key">Esc / OPTIONS</span><span>暂停</span></div>
+        <div class="ctl touch-help">触屏拖动战机 · 点击右下角释放炸弹</div>
+      </div>
+      <div id="mode-select">
+        <button id="btn-mode-easy" class="mode-btn" data-mode="easy">👶 幼儿模式</button>
+        <button id="btn-mode-normal" class="mode-btn" data-mode="normal">⚔️ 正常模式</button>
+        <button id="btn-infinite" class="mode-btn">♾️ 无限生命：关</button>
+      </div>
+      <button id="btn-start" class="btn">开始游戏 <span aria-hidden="true">↗</span></button>
+      <p class="arcade-help">4 秒内续上击破，每 5 连击提升倍率，最高 ×4。<br>击破与擦弹充满能量，自动清弹并进入 6 秒超载：射速 ×2、伤害 ×1.5。</p>
+      <div id="mini-game-launches">
+        <button id="btn-mini-maze" class="mini-launch" title="直接游玩星际迷宫"><span class="mini-launch-icon">⌘</span><span>星际迷宫</span></button>
+        <button id="btn-mini-jump" class="mini-launch" title="直接游玩星际跳一跳"><span class="mini-launch-icon">◆</span><span>星际跳一跳</span></button>
+      </div>
+      <p class="hint">按 ✕ / 空格 开始 · 每 30 波出现 BOSS</p>
     </div>
-    <div id="mode-select">
-      <button id="btn-mode-easy" class="mode-btn" data-mode="easy">👶 幼儿模式</button>
-      <button id="btn-mode-normal" class="mode-btn" data-mode="normal">⚔️ 正常模式</button>
-      <button id="btn-infinite" class="mode-btn">♾️ 无限生命：关</button>
-    </div>
-    <button id="btn-start" class="btn">开始游戏</button>
-    <div id="mini-game-launches">
-      <button id="btn-mini-maze" class="mini-launch" title="直接游玩星际迷宫"><span class="mini-launch-icon">⌘</span><span>星际迷宫</span></button>
-      <button id="btn-mini-jump" class="mini-launch" title="直接游玩星际跳一跳"><span class="mini-launch-icon">◆</span><span>星际跳一跳</span></button>
-    </div>
-    <p class="hint">按 ✕ / 空格 开始 · 每 30 波出现 BOSS</p>
+    <div class="start-footer"><span>深空航线 / SECTOR 07</span><span>系统就绪 <i></i></span></div>
   </div>
 
   <!-- 暂停 -->
@@ -105,6 +116,7 @@
   <div id="screen-over" class="screen hidden">
     <h2>游戏结束</h2>
     <p id="final-score"></p>
+    <p id="run-stats"></p>
     <button id="btn-restart" class="btn">再来一局 (✕)</button>
     <button id="btn-home" class="btn btn-ghost">🏠 回到入口页 (◯)</button>
     <p class="hint">↑↓ 选择 · ✕ 确认 · ◯ 回到入口页</p>
@@ -116,12 +128,13 @@
   <!-- 移动端炸弹按钮 -->
   <button id="btn-bomb" class="hidden">💣</button>
 </div>
-<script src="js/input.js?v=2.8"></script>
-<script src="js/audio.js?v=2.8"></script>
-<script src="js/entities.js?v=2.8"></script>
-<script src="js/progression.js?v=2.8"></script>
-<script src="js/events.js?v=2.8"></script>
-<script src="js/render.js?v=2.8"></script>
-<script src="js/game.js?v=2.8"></script>
+<script src="js/input.js?v=2.9.1"></script>
+<script src="js/audio.js?v=2.9.1"></script>
+<script src="js/entities.js?v=2.9.1"></script>
+<script src="js/arcade.js?v=2.9.1"></script>
+<script src="js/progression.js?v=2.9.1"></script>
+<script src="js/events.js?v=2.9.1"></script>
+<script src="js/render.js?v=2.9.1"></script>
+<script src="js/game.js?v=2.9.1"></script>
 </body>
 </html>

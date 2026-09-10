@@ -180,7 +180,7 @@ function shoot() {
     bullets.push({
       x: player.x + s.dx, y: player.y - 18,
       vx: Math.sin(a) * spd, vy: -Math.cos(a) * spd,
-      dmg: s.dmg, pierce: !!s.pierce, homing: s.homing || 0,
+      dmg: s.dmg * (arcade.burst > 0 ? 1.5 : 1), pierce: !!s.pierce, homing: s.homing || 0,
       amp: s.amp || 0, phase: 0, chain: s.chain || 0,
       big: !!s.big, kind: st
     });
@@ -217,7 +217,7 @@ function spawnTank(x) {
 function spawnOrb(x) {
   enemies.push({
     type: 'orb', x: x, y: -30, r: 16, hp: 5, score: 300,
-    ty: rand(110, 200), fireT: 1.8, vx: Math.random() < 0.5 ? -65 : 65
+    ty: rand(110, 200), t: 0, fireT: 1.8, vx: Math.random() < 0.5 ? -65 : 65
   });
 }
 function spawnAsteroid() {
@@ -285,6 +285,7 @@ function updateEnemies(dt) {
   var sm = DIFF.speedMul;
   for (var i = enemies.length - 1; i >= 0; i--) {
     var e = enemies[i];
+    e.hitFlash = Math.max(0, (e.hitFlash || 0) - dt);
     switch (e.type) {
       case 'grunt':
         e.t += dt;
@@ -312,6 +313,7 @@ function updateEnemies(dt) {
         }
         break;
       case 'orb':
+        e.t += dt;
         if (e.y < e.ty) e.y += 90 * sm * dt;
         else {
           e.x += e.vx * sm * dt;
@@ -340,8 +342,9 @@ function killEnemy(j) {
   explosion(e.x, e.y, big ? 38 : 20, big ? 26 : 13);
   if (big) { sfx.explodeBig(); G.shake = Math.max(G.shake, 8); input.vibrate(120, 0.6, 0.5); }
   else sfx.explodeSmall();
-  G.score += e.score;
-  addFloat('+' + e.score, e.x, e.y);
+  var points = awardArcadeKill(e.score);
+  G.score += points;
+  addFloat('+' + points, e.x, e.y, comboMultiplier() > 1 ? '#74ffe2' : '#eaf6ff');
   dropLoot(e);
 }
 
@@ -504,7 +507,7 @@ function killBoss() {
   explosion(b.x, b.y, 90, 60);
   explosion(b.x - 50, b.y + 10, 40, 20);
   explosion(b.x + 50, b.y - 10, 40, 20);
-  var pts = 3000 + 1000 * b.level;
+  var pts = awardArcadeKill(3000 + 1000 * b.level);
   G.score += pts;
   addFloat('+' + pts, b.x, b.y, '#ffd25d');
   sfx.explodeBig();
@@ -621,7 +624,7 @@ function updatePlayer(dt) {
   // 仅战斗阶段自动发射；小游戏阶段由独立规则接管移动
   if (isAutoFireEnabled() && p.cool <= 0) {
     shoot();
-    p.cool = weaponCooldown(WEAPON_STAGES[p.wstage - 1].cool[p.wlevel - 1]);
+    p.cool = weaponCooldown(WEAPON_STAGES[p.wstage - 1].cool[p.wlevel - 1]) * (arcade.burst > 0 ? 0.5 : 1);
   }
 
   // 引擎尾焰
@@ -634,6 +637,7 @@ function updatePlayer(dt) {
 
 function playerHit() {
   if (player.inv > 0 || !player.alive) return;
+  breakArcadeCombo();
   if (G.infiniteLives) {
     // 无限生命：受击只有表现，不掉血
     player.inv = 1;
@@ -766,7 +770,7 @@ function handleCollisions() {
     }
   }
 
-  if (!player.alive || player.inv > 0) return;
+  if (!player.alive) return;
 
   for (i = bullets.length - 1; i >= 0; i--) {
     bl = bullets[i];
@@ -797,6 +801,7 @@ function handleCollisions() {
           bl.hitSet.add(e);
         }
         e.hp -= bl.dmg;
+        e.hitFlash = 0.1;
         sparks(bl.x, bl.y + 6, 2, bl.pierce ? '#c9a0ff' : '#ffd9a0');
         var killed = e.hp <= 0;
         if (killed) killEnemy(j); // 先移除当前目标，链电清理时索引才安全
@@ -827,6 +832,7 @@ function handleCollisions() {
       playerHit();
       return;
     }
+    if (circleHit(player.x, player.y - 4, player.r + 15, eb.x, eb.y, eb.r)) grazeBullet(eb);
   }
   for (i = enemies.length - 1; i >= 0; i--) {
     e = enemies[i];

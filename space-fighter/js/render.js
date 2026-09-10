@@ -5,6 +5,33 @@
 
 var spriteSheet = new Image();
 spriteSheet.src = encodeURI('武器怪兽素材.png');
+var interceptorImage = new Image();
+interceptorImage.src = 'assets/interceptor.svg';
+
+// 静态行星离屏缓存，避免每帧重复绘制大面积渐变。
+var planetCanvas = document.createElement('canvas');
+planetCanvas.width = 540; planetCanvas.height = 560;
+(function paintPlanet() {
+  var pctx = planetCanvas.getContext('2d');
+  var glow = pctx.createRadialGradient(370, 225, 130, 370, 225, 225);
+  glow.addColorStop(0, 'rgba(66,177,199,.16)'); glow.addColorStop(1, 'rgba(66,177,199,0)');
+  pctx.fillStyle = glow; pctx.fillRect(0, 0, 540, 560);
+  pctx.save(); pctx.translate(370, 225); pctx.rotate(-0.4);
+  pctx.strokeStyle = 'rgba(131,200,206,.12)'; pctx.lineWidth = 18;
+  pctx.beginPath(); pctx.ellipse(0, 0, 255, 70, 0, 0, Math.PI * 2); pctx.stroke();
+  pctx.restore();
+  var surface = pctx.createRadialGradient(295, 155, 5, 410, 260, 175);
+  surface.addColorStop(0, '#32647a'); surface.addColorStop(.5, '#173548'); surface.addColorStop(1, '#07131f');
+  pctx.beginPath(); pctx.arc(370, 225, 148, 0, Math.PI * 2); pctx.fillStyle = surface; pctx.fill();
+  pctx.save(); pctx.clip();
+  for (var i = 0; i < 18; i++) {
+    pctx.strokeStyle = 'rgba(133,201,203,.035)'; pctx.lineWidth = 2 + i % 4;
+    pctx.beginPath(); pctx.ellipse(355, 115 + i * 14, 163, 20, -0.3, 0, Math.PI * 2); pctx.stroke();
+  }
+  pctx.restore();
+  pctx.beginPath(); pctx.arc(370, 225, 149, Math.PI * .85, Math.PI * 1.9);
+  pctx.strokeStyle = 'rgba(127,233,230,.45)'; pctx.lineWidth = 1.5; pctx.stroke();
+})();
 
 var lootSheet = new Image();
 lootSheet.src = encodeURI('掉落物素材.png');
@@ -62,16 +89,17 @@ function drawMovingSprite(sprite, b) {
 
 function drawBackground() {
   var grad = ctx.createLinearGradient(0, 0, 0, LH);
-  grad.addColorStop(0, '#0a1030');
-  grad.addColorStop(0.5, '#070b20');
-  grad.addColorStop(1, '#04060f');
+  grad.addColorStop(0, '#09192b');
+  grad.addColorStop(0.5, '#071422');
+  grad.addColorStop(1, '#040b16');
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, LW, LH);
+  ctx.drawImage(planetCanvas, -20, 20);
 
   for (var i = 0; i < nebulas.length; i++) {
     var nb = nebulas[i];
     var g = ctx.createRadialGradient(nb.x, nb.y, 0, nb.x, nb.y, nb.r);
-    g.addColorStop(0, 'rgba(' + nb.c + ',0.10)');
+    g.addColorStop(0, 'rgba(' + nb.c + ',0.16)');
     g.addColorStop(1, 'rgba(' + nb.c + ',0)');
     ctx.fillStyle = g;
     ctx.fillRect(nb.x - nb.r, nb.y - nb.r, nb.r * 2, nb.r * 2);
@@ -83,7 +111,7 @@ function drawStars() {
     var s = stars[i];
     ctx.globalAlpha = 0.3 + s.z * 0.7;
     ctx.fillStyle = s.z > 0.75 ? '#dfeaff' : '#8fa8d8';
-    ctx.fillRect(s.x, s.y, s.r, s.r + s.z * 2.5);
+    ctx.fillRect(s.x, s.y, s.r, s.r + s.z * (arcade.burst > 0 && G.mode === 'playing' ? 25 : 3));
   }
   ctx.globalAlpha = 1;
 }
@@ -106,13 +134,27 @@ function drawPlayer() {
     ctx.shadowBlur = 0;
   }
 
-  drawSprite(SPRITES.player, p.x, p.y, 54, 67, 0);
+  var flameLength = 32 + Math.sin(G.time * 38) * 9 + (arcade.burst > 0 ? 28 : 0);
+  var flame = ctx.createLinearGradient(p.x, p.y + 20, p.x, p.y + 20 + flameLength);
+  flame.addColorStop(0, '#ddfff7'); flame.addColorStop(.25, '#74ffe2'); flame.addColorStop(1, 'rgba(40,150,255,0)');
+  ctx.fillStyle = flame;
+  ctx.beginPath(); ctx.moveTo(p.x - 7, p.y + 20); ctx.lineTo(p.x, p.y + 20 + flameLength); ctx.lineTo(p.x + 7, p.y + 20); ctx.fill();
+  if (interceptorImage.complete && interceptorImage.naturalWidth) ctx.drawImage(interceptorImage, p.x - 32, p.y - 42, 64, 77);
+  else drawSprite(SPRITES.player, p.x, p.y, 54, 67, 0);
+  // 中心标记标示弹幕判定位置，超载外环仅表示状态。
+  ctx.fillStyle = '#f0fffa'; ctx.beginPath(); ctx.arc(p.x, p.y - 4, 2.5, 0, TAU); ctx.fill();
+  if (arcade.burst > 0 && isCombatRunPhase()) {
+    ctx.strokeStyle = '#74ffe2'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(p.x, p.y, 39, G.time * 3, G.time * 3 + Math.PI * 1.4); ctx.stroke();
+  }
 
   ctx.restore();
 }
 
 function drawEnemy(e) {
   var sprite = SPRITES.enemies[e.type];
+  ctx.save();
+  if (e.hitFlash > 0) { ctx.shadowColor = '#fff8d8'; ctx.shadowBlur = 16; }
   switch (e.type) {
     case 'grunt':
       drawSprite(sprite, e.x, e.y, 40, 40, 0);
@@ -130,6 +172,16 @@ function drawEnemy(e) {
       drawSprite(sprite, e.x, e.y, e.r * 2.2, e.r * 2.45, e.rot);
       break;
   }
+  ctx.restore();
+  if ((e.type === 'tank' || e.type === 'orb') && e.y > 0) {
+    var hpMax = e.type === 'tank' ? 10 : 5;
+    ctx.fillStyle = 'rgba(255,180,126,.15)'; ctx.fillRect(e.x - 18, e.y - 39, 36, 3);
+    ctx.fillStyle = '#ffb27c'; ctx.fillRect(e.x - 18, e.y - 39, 36 * Math.max(0, e.hp / hpMax), 3);
+    if (e.fireT < .45) {
+      ctx.strokeStyle = 'rgba(255,177,124,.65)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 7, 0, TAU); ctx.stroke();
+    }
+  }
 }
 
 function drawBoss() {
@@ -141,13 +193,20 @@ function drawBoss() {
 function drawBullets() {
   for (var i = 0; i < bullets.length; i++) {
     var b = bullets[i];
+    ctx.strokeStyle = WEAPON_STAGES[(b.kind || 1) - 1].color;
+    ctx.globalAlpha = .4; ctx.lineWidth = b.big ? 5 : 2;
+    ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.vx * .035, b.y - b.vy * .035); ctx.stroke();
+    ctx.globalAlpha = 1;
     drawMovingSprite(SPRITES.weapons[(b.kind || 1) - 1] || SPRITES.weapons[0], b);
   }
 }
 
 function drawEBullets() {
   for (var i = 0; i < ebullets.length; i++) {
-    drawMovingSprite(SPRITES.enemyBullet, ebullets[i]);
+    var b = ebullets[i];
+    ctx.fillStyle = '#281526'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r + 3, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#ff795f'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r + 1, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#fff1ca'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r * .5, 0, TAU); ctx.fill();
   }
 }
 
@@ -313,13 +372,13 @@ function drawBanner() {
   if (banner.color === '#ff8a9a') alpha *= Math.floor(G.time * 6) % 2 === 0 ? 1 : 0.45;
   ctx.save();
   ctx.globalAlpha = alpha;
-  ctx.font = '700 36px sans-serif';
+  ctx.font = '700 27px sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.shadowColor = banner.color;
   ctx.shadowBlur = 16;
   ctx.fillStyle = banner.color;
-  ctx.fillText(banner.text, LW / 2, LH * 0.42);
+  ctx.fillText(banner.text, LW / 2, LH * 0.32, LW - 32);
   ctx.restore();
 }
 

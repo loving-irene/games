@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 480" fill="none">
+  <defs>
+    <linearGradient id="hull" x1="110" y1="50" x2="310" y2="390" gradientUnits="userSpaceOnUse"><stop stop-color="#effbff"/><stop offset=".4" stop-color="#7ca8ba"/><stop offset=".5" stop-color="#d7edf2"/><stop offset="1" stop-color="#284e65"/></linearGradient>
+    <linearGradient id="wing" x1="30" y1="230" x2="300" y2="370"><stop stop-color="#476f85"/><stop offset=".5" stop-color="#a2c4cc"/><stop offset="1" stop-color="#203d54"/></linearGradient>
+    <linearGradient id="flame" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#ecffff"/><stop offset=".25" stop-color="#6cffe0"/><stop offset="1" stop-color="#34b5ff" stop-opacity="0"/></linearGradient>
+    <linearGradient id="glass" x1="180" y1="155" x2="223" y2="236" gradientUnits="userSpaceOnUse"><stop stop-color="#e6ffff"/><stop offset=".3" stop-color="#50f0eb"/><stop offset="1" stop-color="#155473"/></linearGradient>
+  </defs>
+  <path d="M157 331L165 470L183 333M217 333L235 470L243 331" fill="url(#flame)"/>
+  <path d="M179 354L200 480L221 354" fill="url(#flame)"/>
+  <path d="M157 216L44 340L31 382L143 354L171 312M243 216L356 340L369 382L257 354L229 312" fill="url(#wing)" stroke="#9ebcc7" stroke-width="2"/>
+  <path d="M60 336L60 257L69 248L77 319M340 336L340 257L331 248L323 319" fill="#4f7e90" stroke="#c0dbe3" stroke-width="2"/>
+  <path d="M149 247L157 330L183 340L181 210M251 247L243 330L217 340L219 210" fill="#173348" stroke="#6c9aab" stroke-width="2"/>
+  <path d="M200 24L220 124L247 281L225 360L200 344L175 360L153 281L180 124Z" fill="url(#hull)" stroke="#d3e8ec" stroke-width="2"/>
+  <path d="M200 24V147M200 243V344M161 280L191 261M239 280L209 261" stroke="#36586c" stroke-width="3"/>
+  <path d="M200 148L215 183L220 224L200 245L180 224L185 183Z" fill="url(#glass)" stroke="#143b51" stroke-width="5"/>
+  <path d="M86 341L133 291M314 341L267 291" stroke="#71ffe2" stroke-width="5"/>
+  <path d="M175 286L181 320M225 286L219 320" stroke="#f5a85e" stroke-width="6"/>
+  <path d="M190 90L200 61L210 90" stroke="#f6ffff" stroke-width="2"/>
+  <path d="M158 331H181M219 331H242" stroke="#c4fff6" stroke-width="6"/>
+</svg>

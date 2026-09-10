@@ -31,7 +31,6 @@ function clearCombatObjects() {
 
 function finishWaveFlow(wave) {
   runState.pendingWave = wave + 1;
-  clearCombatObjects();
   if (wave % 30 === 0) startModuleReward(true, 3);
   else if (!runState.miniGameUsed && wave === runState.miniGameWave) {
     runState.miniGameUsed = true;
@@ -40,6 +39,7 @@ function finishWaveFlow(wave) {
 }
 
 function startModuleReward(rare, count) {
+  clearCombatObjects();
   setRunPhase('reward');
   runState.rewardType = 'module';
   showRewardChoice(rare ? '稀有模块' : '回收模块', '模块会自动寻找可用合成配方', getModuleChoices(count, rare), function (id) {
@@ -49,6 +49,7 @@ function startModuleReward(rare, count) {
 }
 
 function startMiniGameChoice() {
+  clearCombatObjects();
   setRunPhase('mini-choice');
   runState.choiceTime = 5;
   var choices = shuffledCopy(Object.keys(MINI_GAME_DEFS).map(function (id) {
@@ -73,9 +74,10 @@ function startMiniGame(kind) {
   setRunPhase('minigame');
   clearCombatObjects();
   player.inv = 1;
-  player.x = LW / 2;
-  player.y = LH - 140;
-  runState.miniGame = { kind: kind, time: kind === 'maze' ? 20 : 24, maxTime: kind === 'maze' ? 20 : 24, score: 0 };
+  runState.miniGame = {
+    kind: kind, time: kind === 'maze' ? 20 : 24, maxTime: kind === 'maze' ? 20 : 24, score: 0,
+    returnPosition: { x: player.x, y: player.y }
+  };
   if (kind === 'maze') setupMazeGame(runState.miniGame);
   else setupJumpGame(runState.miniGame);
   hideRewardChoice();
@@ -237,16 +239,17 @@ function finishMiniGame(success) {
     backToMenu();
     return;
   }
+  // 小游戏有独立坐标，回到进入前的战斗位置，避免沿用掉出屏幕等结束坐标。
+  player.x = game.returnPosition.x;
+  player.y = game.returnPosition.y;
+  player.inv = Math.max(player.inv, 1.2);
   advanceRunWave();
-  if (success) spawnPowerup(LW / 2, LH - 190, Math.random() < 0.5 ? 'P' : 'H');
+  if (success) spawnPowerup(player.x, player.y - 50, Math.random() < 0.5 ? 'P' : 'H');
 }
 
 function advanceRunWave() {
   hideRewardChoice();
-  clearCombatObjects();
-  player.x = LW / 2;
-  player.y = LH - 140;
-  player.inv = Math.max(player.inv, 1.2);
+  // 普通波次只推进导演状态，延续飞行、射击和物资收集。
   if (runState.pendingWave % 30 === 1) prepareMiniGameCycle(runState.pendingWave);
   startWave(runState.pendingWave);
 }

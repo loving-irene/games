@@ -16,6 +16,8 @@ var ui = {
   score: $('score'), wave: $('wave'), hiscore: $('hiscore'),
   lives: $('lives'), bombs: $('bombs'), weapon: $('weapon'), weaponName: $('weapon-name'),
   modules: $('modules'),
+  arcadePanel: $('arcade-panel'), combo: $('combo'), comboFill: $('combo-fill'),
+  energyLabel: $('energy-label'), energyFill: $('energy-fill'), runStats: $('run-stats'),
   bossBar: $('boss-bar'), bossName: $('boss-name'), bossHp: $('boss-hp'),
   eventPanel: $('event-panel'), eventTitle: $('event-title'), eventProgress: $('event-progress'),
   start: $('screen-start'), pause: $('screen-pause'), over: $('screen-over'),
@@ -134,6 +136,12 @@ function refreshHud() {
   setText(ui.weapon, '★'.repeat(player.wlevel) + '☆'.repeat(5 - player.wlevel));
   setText(ui.weaponName, weaponName(player.wstage) + ' · Lv' + player.wlevel);
   setText(ui.modules, moduleInventoryText());
+  ui.arcadePanel.classList.toggle('hidden', !isCombatRunPhase());
+  setText(ui.combo, arcade.combo + ' 连击 · ×' + comboMultiplier());
+  ui.comboFill.style.width = arcade.comboTime / ARCADE.comboSeconds * 100 + '%';
+  setText(ui.energyLabel, arcade.burst > 0 ? '超载 ' + arcade.burst.toFixed(1) + 's' : '超载充能 ' + arcade.energy + '%');
+  ui.energyFill.style.width = (arcade.burst > 0 ? arcade.burst / ARCADE.burstSeconds * 100 : arcade.energy) + '%';
+  ui.arcadePanel.classList.toggle('burst-active', arcade.burst > 0);
   ui.weaponName.style.color = WEAPON_STAGES[player.wstage - 1].color;
   if (boss) ui.bossHp.style.width = Math.max(0, boss.hp / boss.maxHp * 100) + '%';
   var eventHud = runHudData();
@@ -265,6 +273,7 @@ function startGame() {
   player.hp = player.maxHp; player.shield = false; player.wstage = 1; player.wlevel = 1;
   player.bombs = 2; player.cool = 0; player.inv = 2; player.alive = true; player.speed = 350;
   resetProgression();
+  resetArcade();
   resetRunFlow();
   resetDirector();
   startWave(1);
@@ -296,6 +305,7 @@ function startStandaloneMiniGame(kind) {
   player.hp = player.maxHp; player.shield = false; player.wstage = 1; player.wlevel = 1;
   player.bombs = 2; player.cool = 0; player.inv = 1; player.alive = true; player.speed = 350;
   resetProgression();
+  resetArcade();
   resetRunFlow();
   resetDirector();
   runState.standalone = true;
@@ -344,11 +354,14 @@ function gameOver() {
     try { localStorage.setItem('sf_highscore', String(G.hiscore)); } catch (e) { /* 隐私模式忽略 */ }
   }
   ui.finalScore.textContent = '得分 ' + G.score + (G.newRecord ? ' 🏆 新纪录！' : '');
+  ui.runStats.textContent = '第 ' + G.wave + ' 波 · 击破 ' + arcade.kills + ' · 最高连击 ' + arcade.bestCombo
+    + ' · 擦弹 ' + arcade.grazes + ' · 超载 ' + arcade.bursts + ' 次';
   ui.hud.classList.add('hidden');
   ui.bossBar.classList.add('hidden');
   ui.eventPanel.classList.add('hidden');
   hideRewardChoice();
   ui.over.classList.remove('hidden');
+  showMenu('over');
 }
 
 // 返回入口页：可重新选择难度 / 无限生命等配置
@@ -416,6 +429,7 @@ function update(dt) {
   G.time += dt;
   if (banner.t > 0) banner.t -= dt;
   updateBg(dt);
+  updateArcade(dt);
   if (isCombatRunPhase()) updatePlayer(dt);
   if (isCombatRunPhase()) {
     updateDirector(dt);
